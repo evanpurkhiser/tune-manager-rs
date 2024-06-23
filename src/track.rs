@@ -9,7 +9,46 @@ use regex::Regex;
 
 use crate::{fields::CountField, tags::Id3TagId};
 
-#[derive(Debug)]
+// track from metadata and tags using sqlx flatten
+#[derive(Debug, sqlx::FromRow)]
+pub struct Track {
+    #[sqlx(flatten)]
+    pub metadata: TrackMetadaata,
+    #[sqlx(flatten)]
+    pub tags: TrackTags,
+}
+
+impl From<(PathBuf, Tag)> for Track {
+    fn from((entry, tag): (PathBuf, Tag)) -> Self {
+        Self {
+            metadata: entry.into(),
+            tags: tag.into(),
+        }
+    }
+}
+
+#[derive(Debug, sqlx::FromRow)]
+pub struct TrackMetadaata {
+    pub file_path: PathBuf,
+    pub mtime: u64,
+}
+
+impl From<PathBuf> for TrackMetadaata {
+    fn from(path: PathBuf) -> Self {
+        Self {
+            file_path: path.to_owned(),
+            mtime: path
+                .metadata()
+                .and_then(|m| m.modified())
+                .expect("Failed to get file modified time")
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+        }
+    }
+}
+
+#[derive(Debug, sqlx::FromRow)]
 pub struct TrackTags {
     pub artist: Option<String>,
     pub title: Option<String>,
@@ -48,17 +87,18 @@ impl From<Tag> for TrackTags {
 lazy_static! {
     /// Patterns to replace (and the string to replace with)
     static ref PATH_REPLACEMENTS: Vec<(Regex, String)> = vec![
-        (Regex::new(r#"[\*\?\|:"<>]"#).unwrap(), "".to_string()),
+        (Regex::new(r#"[\*\?\|:"<>]|^\.|\.$"#).unwrap(), "".to_string()),
         (Regex::new(r#"[\x00-\x1f]"#).unwrap(), "_".to_string()),
         (Regex::new(r#"[\/]"#).unwrap(), "-".to_string()),
         (Regex::new(r#"  +"#).unwrap(), " ".to_string()),
     ];
 }
 
-impl TrackTags {
+impl Track {
     /// Constructes the cononical path that the track should be located at derived from it's tags.
     pub fn cononical_path(&self) -> PathBuf {
-        let mut parts = vec![];
+        let tags = &self.tags;
+        let mut path_parts = vec![];
 
         // Construct track directory names
         //
@@ -70,26 +110,26 @@ impl TrackTags {
         //
 
         // First directory is the publisher
-        parts.push(
-            self.publisher
+        path_parts.push(
+            tags.publisher
                 .as_deref()
                 .unwrap_or("[+no-label]")
                 .to_string(),
         );
 
         // Second directory is the album name and release number
-        parts.push(match &self.album {
+        path_parts.push(match &tags.album {
             Some(album) => {
-                let release = self.release.as_deref().unwrap_or("--");
+                let release = tags.release.as_deref().unwrap_or("--");
                 format!("[{}] {}", release, album)
             }
             None => "[+singles]".to_string(),
         });
 
         //If the album has multiple discs include them as a directory
-        if let Some(CountField::Valid(count)) = self.disc.as_ref() {
+        if let Some(CountField::Valid(count)) = tags.disc.as_ref() {
             if count.total > 1 {
-                parts.push(format!("Disc {}", count.number));
+                path_parts.push(format!("Disc {}", count.number));
             }
         }
 
@@ -101,52 +141,84 @@ impl TrackTags {
         //  - Exclude key (with enclosing brackets) unless available
         //  - Exclude release number (with enclosing brackets) if track is a single
         //
-        let mut filename = vec![];
+        let mut file_parts = vec![];
 
         // If part of an album or EP include the track number
-        if self.album.is_some() {
-            if let Some(CountField::Valid(count)) = self.track.as_ref() {
-                filename.push(format!("{:02}.", count.number));
+        if tags.album.is_some() {
+            if let Some(CountField::Valid(count)) = tags.track.as_ref() {
+                file_parts.push(format!("{:02}.", count.number));
             }
         }
 
         // If this track is a single and has a release number include it
-        if self.album.is_none() {
-            if let Some(release) = self.release.as_deref() {
-                filename.push(format!("[{}]", release))
+        if tags.album.is_none() {
+            if let Some(release) = tags.release.as_deref() {
+                file_parts.push(format!("[{}]", release))
             }
         }
 
         // Include key of the track if available
-        filename.push(format!("[{}]", self.key.as_deref().unwrap_or("--")));
+        file_parts.push(format!("[{}]", tags.key.as_deref().unwrap_or("--")));
 
         // Finally artist and title of the track
-        filename.push(format!(
+        file_parts.push(format!(
             "{} - {}",
-            self.artist.as_deref().unwrap_or("<unknown artist>"),
-            self.title.as_deref().unwrap_or("<unknown title>")
+            tags.artist.as_deref().unwrap_or("<unknown artist>"),
+            tags.title.as_deref().unwrap_or("<unknown title>")
         ));
 
-        parts.push(filename.join(" "));
+        let mut filename = file_parts.join(" ").trim().to_string();
 
-        parts
-            .into_iter()
-            .map(|mut part| {
-                for (regex, replacement) in PATH_REPLACEMENTS.iter() {
-                    part = regex.replace_all(&part, replacement).trim().to_string();
-                }
-                part
-            })
-            .fold(PathBuf::new(), |mut acc, part| {
-                acc.push(Path::new(&part));
-                acc
-            })
+        // Fake extension will be replaced later using set_extensoon
+        filename.push_str(".xxx");
+
+        path_parts.push(filename);
+
+        let mut path = PathBuf::new();
+
+        for mut part in path_parts {
+            for (regex, replacement) in PATH_REPLACEMENTS.iter() {
+                part = regex.replace_all(&part, replacement).trim().to_string();
+            }
+            path.push(Path::new(&part));
+        }
+
+        path.set_extension(
+            self.metadata
+                .file_path
+                .extension()
+                .unwrap()
+                .to_str()
+                .unwrap(),
+        );
+
+        path
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    impl From<TrackTags> for Track {
+        fn from(tags: TrackTags) -> Self {
+            Self {
+                metadata: Default::default(),
+                tags,
+            }
+        }
+    }
+
+    impl Default for TrackMetadaata {
+        fn default() -> Self {
+            Self {
+                file_path: PathBuf::from(
+                    "Publisher/[RLS] Album/Disc 2/01. [10A] Artist - Title.mp3",
+                ),
+                mtime: 1234567890,
+            }
+        }
+    }
 
     impl Default for TrackTags {
         fn default() -> Self {
@@ -169,60 +241,65 @@ mod tests {
 
     #[test]
     fn test_cononical_path() {
-        let simple_track = TrackTags::default();
+        let track: Track = TrackTags::default().into();
         assert_eq!(
-            simple_track.cononical_path().to_str().unwrap(),
-            "Publisher/[RLS] Album/Disc 2/01. [10A] Artist - Title"
+            track.cononical_path().to_str().unwrap(),
+            "Publisher/[RLS] Album/Disc 2/01. [10A] Artist - Title.mp3"
         );
 
-        let no_publisher = TrackTags {
+        let no_publisher: Track = TrackTags {
             publisher: None,
             ..Default::default()
-        };
+        }
+        .into();
         assert_eq!(
             no_publisher.cononical_path().to_str().unwrap(),
-            "[+no-label]/[RLS] Album/Disc 2/01. [10A] Artist - Title"
+            "[+no-label]/[RLS] Album/Disc 2/01. [10A] Artist - Title.mp3"
         );
 
-        let no_release = TrackTags {
+        let no_release: Track = TrackTags {
             release: None,
             ..Default::default()
-        };
+        }
+        .into();
         assert_eq!(
             no_release.cononical_path().to_str().unwrap(),
-            "Publisher/[--] Album/Disc 2/01. [10A] Artist - Title"
+            "Publisher/[--] Album/Disc 2/01. [10A] Artist - Title.mp3"
         );
 
-        let single = TrackTags {
+        let single: Track = TrackTags {
             album: None,
             disc: None,
             track: None,
             ..Default::default()
-        };
+        }
+        .into();
         assert_eq!(
             single.cononical_path().to_str().unwrap(),
-            "Publisher/[+singles]/[RLS] [10A] Artist - Title"
+            "Publisher/[+singles]/[RLS] [10A] Artist - Title.mp3"
         );
 
-        let single_no_release = TrackTags {
+        let single_no_release: Track = TrackTags {
             album: None,
             disc: None,
             track: None,
             release: None,
             ..Default::default()
-        };
+        }
+        .into();
         assert_eq!(
             single_no_release.cononical_path().to_str().unwrap(),
-            "Publisher/[+singles]/[10A] Artist - Title"
+            "Publisher/[+singles]/[10A] Artist - Title.mp3"
         );
 
-        let special_characters = TrackTags {
+        let special_characters: Track = TrackTags {
             title: Some(r#"What? P* | Real: <new/track> "cool" "#.to_string()),
             ..Default::default()
-        };
+        }
+        .into();
         assert_eq!(
             special_characters.cononical_path().to_str().unwrap(),
-            "Publisher/[RLS] Album/Disc 2/01. [10A] Artist - What P Real new-track cool"
+            "Publisher/[RLS] Album/Disc 2/01. [10A] Artist - What P Real new-track cool.mp3"
         );
     }
 }
