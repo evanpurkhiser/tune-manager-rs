@@ -8,7 +8,7 @@ pub enum Id3TagId {
     Album,
     Remixer,
     Publisher,
-    Release,
+    CatlogId,
     Bpm,
     Key,
     Year,
@@ -22,7 +22,7 @@ impl Id3TagId {
     pub fn from(&self, tag: &Tag) -> Option<String> {
         tag.get(self.as_str())
             .and_then(|f| match self {
-                Id3TagId::Release => f
+                Id3TagId::CatlogId => f
                     .content()
                     .comment()
                     .map(|c| c.text.as_str().trim_matches(char::from(0))),
@@ -39,7 +39,7 @@ impl Id3TagId {
             Self::Album => "TALB",
             Self::Remixer => "TPE4",
             Self::Publisher => "TPUB",
-            Self::Release => "COMM",
+            Self::CatlogId => "COMM",
             Self::Bpm => "TBPM",
             Self::Key => "TKEY",
             Self::Year => "TDRC",

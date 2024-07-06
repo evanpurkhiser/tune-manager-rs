@@ -55,7 +55,7 @@ pub struct TrackTags {
     pub album: Option<String>,
     pub remixer: Option<String>,
     pub publisher: Option<String>,
-    pub release: Option<String>,
+    pub catalog_id: Option<String>,
     pub year: Option<String>,
     pub genre: Option<String>,
     pub key: Option<String>,
@@ -73,7 +73,7 @@ impl From<Tag> for TrackTags {
             album: T::Album.from(&tag),
             remixer: T::Remixer.from(&tag),
             publisher: T::Publisher.from(&tag),
-            release: T::Release.from(&tag),
+            catalog_id: T::CatlogId.from(&tag),
             year: T::Year.from(&tag),
             genre: T::Genre.from(&tag),
             key: T::Key.from(&tag),
@@ -102,10 +102,10 @@ impl Track {
 
         // Construct track directory names
         //
-        // {publisher}/[{release}] {album}/Disc {disc}/
+        // {publisher}/[{catalog_id}] {album}/Disc {disc}/
         //
         //  - If publisher is None: '[+no-label]'
-        //  - If album and release is None: '[+singles]'
+        //  - If album and catalog_id is None: '[+singles]'
         //  - Disc part not required if there is only 1 disc
         //
 
@@ -117,11 +117,11 @@ impl Track {
                 .to_string(),
         );
 
-        // Second directory is the album name and release number
+        // Second directory is the album name and catalog_id
         path_parts.push(match &tags.album {
             Some(album) => {
-                let release = tags.release.as_deref().unwrap_or("--");
-                format!("[{}] {}", release, album)
+                let catalog_id = tags.catalog_id.as_deref().unwrap_or("--");
+                format!("[{}] {}", catalog_id, album)
             }
             None => "[+singles]".to_string(),
         });
@@ -135,11 +135,11 @@ impl Track {
 
         // Construct track filename
         //
-        // {track.number}. [{release}] [{key}] {artist} - {title}
+        // {track.number}. [{catalog_id}] [{key}] {artist} - {title}
         //
         //  - Exclude track number (and trailing dot) if track is a single
         //  - Exclude key (with enclosing brackets) unless available
-        //  - Exclude release number (with enclosing brackets) if track is a single
+        //  - Exclude catalog_id number (with enclosing brackets) if track is a single
         //
         let mut file_parts = vec![];
 
@@ -150,10 +150,10 @@ impl Track {
             }
         }
 
-        // If this track is a single and has a release number include it
+        // If this track is a single and has a catalog_id number include it
         if tags.album.is_none() {
-            if let Some(release) = tags.release.as_deref() {
-                file_parts.push(format!("[{}]", release))
+            if let Some(catalog_id) = tags.catalog_id.as_deref() {
+                file_parts.push(format!("[{}]", catalog_id))
             }
         }
 
@@ -228,7 +228,7 @@ mod tests {
                 album: Some("Album".to_string()),
                 remixer: Some("Remixer".to_string()),
                 publisher: Some("Publisher".to_string()),
-                release: Some("RLS".to_string()),
+                catalog_id: Some("RLS".to_string()),
                 year: Some("2015".to_string()),
                 genre: Some("Genre".to_string()),
                 key: Some("10A".to_string()),
@@ -257,13 +257,13 @@ mod tests {
             "[+no-label]/[RLS] Album/Disc 2/01. [10A] Artist - Title.mp3"
         );
 
-        let no_release: Track = TrackTags {
-            release: None,
+        let no_catalog_id: Track = TrackTags {
+            catalog_id: None,
             ..Default::default()
         }
         .into();
         assert_eq!(
-            no_release.cononical_path().to_str().unwrap(),
+            no_catalog_id.cononical_path().to_str().unwrap(),
             "Publisher/[--] Album/Disc 2/01. [10A] Artist - Title.mp3"
         );
 
@@ -279,16 +279,16 @@ mod tests {
             "Publisher/[+singles]/[RLS] [10A] Artist - Title.mp3"
         );
 
-        let single_no_release: Track = TrackTags {
+        let single_no_catalog_id: Track = TrackTags {
             album: None,
             disc: None,
             track: None,
-            release: None,
+            catalog_id: None,
             ..Default::default()
         }
         .into();
         assert_eq!(
-            single_no_release.cononical_path().to_str().unwrap(),
+            single_no_catalog_id.cononical_path().to_str().unwrap(),
             "Publisher/[+singles]/[10A] Artist - Title.mp3"
         );
 
