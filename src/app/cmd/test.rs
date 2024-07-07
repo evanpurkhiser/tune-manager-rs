@@ -1,14 +1,13 @@
 use std::{collections::HashSet, io};
 
 use id3::Tag;
-use lazy_static::lazy_static;
+use once_cell::unsync::Lazy;
 use walkdir::WalkDir;
 
 use crate::{app::config::Config, track::Track};
 
-lazy_static! {
-    static ref IGNORED_FILES: HashSet<&'static str> = HashSet::from_iter([".DS_STORE"].into_iter());
-}
+const IGNORED_FILES: Lazy<HashSet<&str>> =
+    Lazy::new(|| HashSet::from_iter([".DS_STORE"].into_iter()));
 
 pub fn run(config: &Config) -> io::Result<()> {
     tokio::runtime::Builder::new_multi_thread()

@@ -4,7 +4,7 @@ use std::{
 };
 
 use id3::Tag;
-use lazy_static::lazy_static;
+use once_cell::unsync::Lazy;
 use regex::Regex;
 
 use crate::{fields::CountField, tags::Id3TagId};
@@ -84,15 +84,14 @@ impl From<Tag> for TrackTags {
     }
 }
 
-lazy_static! {
-    /// Patterns to replace (and the string to replace with)
-    static ref PATH_REPLACEMENTS: Vec<(Regex, String)> = vec![
-        (Regex::new(r#"[\*\?\|:"<>]|^\.|\.$"#).unwrap(), "".to_string()),
-        (Regex::new(r#"[\x00-\x1f]"#).unwrap(), "_".to_string()),
-        (Regex::new(r#"[\/]"#).unwrap(), "-".to_string()),
-        (Regex::new(r#"  +"#).unwrap(), " ".to_string()),
-    ];
-}
+const PATH_REPLACEMENTS: Lazy<Vec<(Regex, &str)>> = Lazy::new(|| {
+    vec![
+        (Regex::new(r#"[\*\?\|:"<>]|^\.|\.$"#).unwrap(), ""),
+        (Regex::new(r#"[\x00-\x1f]"#).unwrap(), "_"),
+        (Regex::new(r#"[\/]"#).unwrap(), "-"),
+        (Regex::new(r#"  +"#).unwrap(), " "),
+    ]
+});
 
 impl Track {
     /// Constructes the cononical path that the track should be located at derived from it's tags.

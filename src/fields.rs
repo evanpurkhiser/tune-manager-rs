@@ -1,10 +1,8 @@
-use lazy_static::lazy_static;
+use once_cell_regex::regex;
 use regex::Regex;
 use std::{fmt, str};
 
-lazy_static! {
-    static ref COUNT_REGEX: Regex = Regex::new(r"(?P<number>\d+) */ **(?P<total>\d+)").unwrap();
-}
+const COUNT_REGEX: &Regex = regex!(r"(?P<number>\d+) */ **(?P<total>\d+)");
 
 #[derive(Debug)]
 pub struct Count {

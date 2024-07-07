@@ -1866,6 +1866,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "once-cell-regex"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3de7e389a5043420c8f2b95ed03f3f104ad6f4c41f7d7e27298f033abc253e8"
+dependencies = [
+ "once_cell",
+ "regex",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3374,7 +3384,8 @@ dependencies = [
  "figment",
  "httpmock",
  "id3",
- "lazy_static",
+ "once-cell-regex",
+ "once_cell",
  "pretty_assertions",
  "regex",
  "reqwest",
