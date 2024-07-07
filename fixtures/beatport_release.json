@@ -1,0 +1,69 @@
+{
+  "artists": [
+    {
+      "id": 212624,
+      "image": {
+        "id": 5539565,
+        "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+        "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+      },
+      "name": "DJ Bishop",
+      "slug": "dj-bishop",
+      "url": "https://api.beatport.com/v4/catalog/artists/212624/"
+    }
+  ],
+  "bpm_range": {
+    "min": 85,
+    "max": 88
+  },
+  "catalog_number": "247HC031",
+  "desc": "24/7's Dark Knight unleashes his first solo EP",
+  "enabled": true,
+  "encoded_date": "2011-08-23T23:16:27-06:00",
+  "exclusive": false,
+  "grid": null,
+  "id": 439354,
+  "image": {
+    "id": 3274874,
+    "uri": "https://geo-media.beatport.com/image_size/500x500/9c464fa8-2af8-4aa2-b62f-f310ee549f16.jpg",
+    "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/9c464fa8-2af8-4aa2-b62f-f310ee549f16.jpg"
+  },
+  "is_available_for_streaming": true,
+  "label": {
+    "id": 22096,
+    "name": "24/7 Hardcore",
+    "image": {
+      "id": 30806604,
+      "uri": "https://geo-media.beatport.com/image_size/500x500/c423dad0-863f-488d-939a-737617e9638a.jpg",
+      "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/c423dad0-863f-488d-939a-737617e9638a.jpg"
+    },
+    "slug": "247-hardcore"
+  },
+  "name": "Darkest Knight / Finale",
+  "new_release_date": "2010-09-01",
+  "override_price": "0.00",
+  "pre_order": false,
+  "pre_order_date": null,
+  "price": {
+    "code": "USD",
+    "symbol": "$",
+    "value": 2.98,
+    "display": "$2.98"
+  },
+  "price_override_firm": false,
+  "publish_date": "2010-09-01",
+  "remixers": [],
+  "slug": "darkest-knight-finale",
+  "tracks": [
+    "https://api.beatport.com/v4/catalog/tracks/2445706/",
+    "https://api.beatport.com/v4/catalog/tracks/2445705/"
+  ],
+  "track_count": 2,
+  "type": {
+    "id": 1,
+    "name": "Release"
+  },
+  "upc": "5052653120098",
+  "updated": "2015-04-12T20:51:43-06:00",
+  "is_hype": false
+}

@@ -1,22 +1,30 @@
 [package]
-name = "rusty-tunes"
+name = "tune-manager"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+clap = { version = "4.5.8", features = ["derive"] }
+clap_derive = "4.5.8"
+console = "0.15.8"
 ffmpeg-next = "7.0.2"
+figment = { version = "0.10.19", features = ["serde_yaml", "yaml", "test"] }
 httpmock = "0.7.0"
 id3 = "1.13.1"
 lazy_static = "1.5.0"
 pretty_assertions = "1.4.0"
 regex = "1.10.5"
 reqwest = { version = "0.12.5", features = ["json", "cookies"] }
+sentry = { version = "0.34.0", features = ["tracing"] }
 serde = "1.0.203"
 serde_json = "1.0.120"
+serde_yaml = "0.9.34"
 sqlx = { version = "0.7.4", features = ["sqlite", "runtime-tokio", "sqlx-macros"] }
 thiserror = "1.0.61"
 tokio = { version = "1.38.0", features = ["macros", "rt", "rt-multi-thread"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["tracing", "json"] }
 url = "2.5.2"
 walkdir = "2.5.0"

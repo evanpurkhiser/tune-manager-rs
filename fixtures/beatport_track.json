@@ -1,0 +1,119 @@
+{
+  "artists": [
+    {
+      "id": 212624,
+      "image": {
+        "id": 5539565,
+        "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+        "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+      },
+      "name": "DJ Bishop",
+      "slug": "dj-bishop",
+      "url": "https://api.beatport.com/v4/catalog/artists/212624/"
+    }
+  ],
+  "audio_format": null,
+  "available_worldwide": true,
+  "bpm": 85,
+  "catalog_number": "247HC031",
+  "current_status": {
+    "id": 10,
+    "name": "General Content",
+    "url": "https://api.beatport.com/v4/auxiliary/current-status/10/"
+  },
+  "desc": "",
+  "enabled": true,
+  "encode_status": "CONVERTED",
+  "encoded_date": "2011-08-23T23:16:27-06:00",
+  "exclusive": false,
+  "exclusive_period": {
+    "days": 0,
+    "description": "Not exclusive",
+    "id": 1,
+    "url": "https://api.beatport.com/v4/auxiliary/exclusive-period/1/"
+  },
+  "free_downloads": [],
+  "free_download_start_date": null,
+  "free_download_end_date": null,
+  "genre": {
+    "id": 6,
+    "name": "Techno (Peak Time / Driving)",
+    "slug": "techno-peak-time-driving",
+    "url": "https://api.beatport.com/v4/catalog/genres/6/"
+  },
+  "hidden": false,
+  "id": 2445705,
+  "image": {
+    "id": 3276562,
+    "uri": "https://geo-media.beatport.com/image_size/1500x250/6b889716-8fa7-41e8-8e3e-ec6ac8eb8671.png",
+    "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/6b889716-8fa7-41e8-8e3e-ec6ac8eb8671.png"
+  },
+  "is_available_for_streaming": true,
+  "is_classic": false,
+  "isrc": "GBKQU1151744",
+  "key": {
+    "camelot_number": 4,
+    "camelot_letter": "A",
+    "chord_type": {
+      "id": 1,
+      "name": "Minor",
+      "url": "https://api.beatport.com/v4/catalog/chord-types/1/"
+    },
+    "id": 4,
+    "is_sharp": false,
+    "is_flat": false,
+    "letter": "F",
+    "name": "F Minor",
+    "url": "https://api.beatport.com/v4/catalog/keys/4/"
+  },
+  "label_track_identifier": "131980",
+  "length": "5:16",
+  "length_ms": 316235,
+  "mix_name": "Original Mix",
+  "name": "Darkest Knight",
+  "new_release_date": "2010-09-01",
+  "number": 1,
+  "pre_order": false,
+  "pre_order_date": null,
+  "price": {
+    "code": "USD",
+    "symbol": "$",
+    "value": 1.49,
+    "display": "$1.49"
+  },
+  "publish_date": "2010-09-01",
+  "publish_status": "published",
+  "release": {
+    "id": 439354,
+    "name": "Darkest Knight / Finale",
+    "image": {
+      "id": 3274874,
+      "uri": "https://geo-media.beatport.com/image_size/500x500/9c464fa8-2af8-4aa2-b62f-f310ee549f16.jpg",
+      "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/9c464fa8-2af8-4aa2-b62f-f310ee549f16.jpg"
+    },
+    "label": {
+      "id": 22096,
+      "name": "24/7 Hardcore",
+      "image": {
+        "id": 30806604,
+        "uri": "https://geo-media.beatport.com/image_size/500x500/c423dad0-863f-488d-939a-737617e9638a.jpg",
+        "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/c423dad0-863f-488d-939a-737617e9638a.jpg"
+      },
+      "slug": "247-hardcore"
+    },
+    "slug": "darkest-knight-finale"
+  },
+  "remixers": [],
+  "sale_type": {
+    "id": 1,
+    "name": "purchase",
+    "url": "https://api.beatport.com/v4/auxiliary/sale-types/1/"
+  },
+  "sample_url": "https://geo-samples.beatport.com/track/2fc55684-085d-46b2-a9a8-ee895bfd0e48.LOFI.mp3",
+  "sample_start_ms": 126494,
+  "sample_end_ms": 246494,
+  "slug": "darkest-knight",
+  "sub_genre": null,
+  "was_ever_exclusive": false,
+  "is_hype": false
+}
