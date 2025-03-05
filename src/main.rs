@@ -2,8 +2,8 @@
 
 mod app;
 mod beatport;
-mod convert;
 mod fields;
+mod importer;
 mod logging;
 mod tags;
 mod track;

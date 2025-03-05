@@ -1,10 +1,10 @@
 use std::{
     path::{Path, PathBuf},
+    sync::LazyLock,
     vec,
 };
 
 use id3::Tag;
-use once_cell::unsync::Lazy;
 use regex::Regex;
 
 use crate::{fields::CountField, tags::Id3TagId};
@@ -84,7 +84,7 @@ impl From<Tag> for TrackTags {
     }
 }
 
-const PATH_REPLACEMENTS: Lazy<Vec<(Regex, &str)>> = Lazy::new(|| {
+const PATH_REPLACEMENTS: LazyLock<Vec<(Regex, &str)>> = LazyLock::new(|| {
     vec![
         (Regex::new(r#"[\*\?\|:"<>]|^\.|\.$"#).unwrap(), ""),
         (Regex::new(r#"[\x00-\x1f]"#).unwrap(), "_"),
@@ -177,7 +177,7 @@ impl Track {
 
         for mut part in path_parts {
             for (regex, replacement) in PATH_REPLACEMENTS.iter() {
-                part = regex.replace_all(&part, replacement).trim().to_string();
+                part = regex.replace_all(&part, *replacement).trim().to_string();
             }
             path.push(Path::new(&part));
         }

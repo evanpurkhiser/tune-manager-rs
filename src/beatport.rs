@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::LazyLock};
 
-use once_cell_regex::regex;
 use regex::Regex;
 use serde_json::Value;
 use thiserror::Error;
 
-const TRACK_PATH: &Regex = regex!(r"^/track/[^/]+/(?<track_id>\d+)$");
+static TRACK_PATH: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^/track/[^/]+/(?<track_id>\d+)$").unwrap());
 
 /// Extracts the track ID from a Beatport URL. Invalid beatport URLS will return None.
 pub fn try_extract_track_id(maybe_beatport_url: &str) -> Option<u32> {
@@ -138,7 +138,7 @@ mod tests {
 
     use super::BeatportSource;
     use crate::{
-        beatport::{try_extract_track_id, BeatportTrackInfo},
+        beatport::{BeatportTrackInfo, try_extract_track_id},
         tests::read_fixture,
     };
 

@@ -1,8 +1,8 @@
 use std::{borrow::Cow, path::PathBuf, str::FromStr};
 
 use figment::{
-    providers::{Format, Serialized, Yaml},
     Figment,
+    providers::{Format, Serialized, Yaml},
 };
 
 use serde::{Deserialize, Serialize};
@@ -124,7 +124,7 @@ mod tests {
                 Config {
                     sentry_dsn: None,
                     sentry_env: None,
-                    log_level: logging::Level::Warn,
+                    log_level: logging::Level::Info,
                     log_format: logging::LogFormat::Auto,
                     catalog_path: PathBuf::from_str("/home/evan/music").unwrap(),
                     import_path: PathBuf::from_str("/home/evan/new-music").unwrap(),

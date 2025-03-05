@@ -1,13 +1,11 @@
-use std::{collections::HashSet, io};
+use std::{collections::HashSet, io, sync::LazyLock};
 
 use id3::Tag;
-use once_cell::unsync::Lazy;
 use walkdir::WalkDir;
 
 use crate::{app::config::Config, track::Track};
 
-const IGNORED_FILES: Lazy<HashSet<&str>> =
-    Lazy::new(|| HashSet::from_iter([".DS_STORE"].into_iter()));
+static IGNORED_FILES: LazyLock<HashSet<&str>> = LazyLock::new(|| HashSet::from_iter([".DS_STORE"]));
 
 pub fn run(config: &Config) -> io::Result<()> {
     tokio::runtime::Builder::new_multi_thread()
@@ -46,7 +44,7 @@ pub fn run(config: &Config) -> io::Result<()> {
                 .map(|(entry, tag)| (Track::from((entry, tag.clone())), tag))
                 .collect();
 
-            for (track, tag) in items {
+            for (track, _tag) in items {
                 let real_path = track
                     .metadata
                     .file_path

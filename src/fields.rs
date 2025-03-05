@@ -1,8 +1,8 @@
-use once_cell_regex::regex;
 use regex::Regex;
-use std::{fmt, str};
+use std::{fmt, str, sync::LazyLock};
 
-const COUNT_REGEX: &Regex = regex!(r"(?P<number>\d+) */ **(?P<total>\d+)");
+static COUNT_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?P<number>\d+) */ **(?P<total>\d+)").unwrap());
 
 #[derive(Debug)]
 pub struct Count {
