@@ -4,7 +4,7 @@ use std::{fmt, str, sync::LazyLock};
 static COUNT_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?P<number>\d+) */ **(?P<total>\d+)").unwrap());
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Count {
     /// The left hand side of the count
     pub number: u8,
@@ -13,7 +13,7 @@ pub struct Count {
     pub total: u8,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum CountField {
     Valid(Count),
     Invalid(String),
@@ -39,5 +39,21 @@ impl fmt::Display for CountField {
             Self::Valid(c) => write!(f, "{}/{}", c.number, c.total),
             Self::Invalid(s) => f.write_str(s),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Count, CountField};
+
+    #[test]
+    fn test_count_field() {
+        let value = "1 / 10".parse();
+        let expect = CountField::Valid(Count {
+            number: 1,
+            total: 10,
+        });
+        assert_eq!(value, Ok(expect));
+        assert_eq!(value.unwrap().to_string(), "1/10");
     }
 }
