@@ -8,9 +8,11 @@ edition = "2024"
 
 [dependencies]
 axum = { version = "0.7.5", features = ["tokio", "ws"] }
+chrono = { version = "0.4.40", features = ["serde"] }
 clap = { version = "4.5.8", features = ["derive"] }
 clap_derive = "4.5.8"
 console = "0.15.8"
+ffmpeg-next = "7.1.0"
 figment = { version = "0.10.19", features = ["serde_yaml", "yaml", "test"] }
 httpmock = "0.7.0"
 id3 = "1.13.1"
