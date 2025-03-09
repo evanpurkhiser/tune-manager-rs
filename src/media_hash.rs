@@ -1,30 +1,22 @@
-use ffmpeg_next::{format, media};
-use std::{error::Error, io::Write, path::Path};
+use std::{path::Path, process::Command};
 
 /// Computes a MD5 hash of the audio stream of the provided input file. The hash will not change as
 /// the media files metadata is updated.
-pub fn compute(input_path: &Path) -> Result<String, Box<dyn Error>> {
-    ffmpeg_next::init()?;
+pub fn compute(input_path: &Path) -> Result<String, Box<dyn std::error::Error>> {
+    let file_path = input_path.to_str().ok_or("Invalid input path")?;
+    let output = Command::new("ffmpeg")
+        .args(["-i", file_path, "-c:a", "copy", "-f", "md5", "-"])
+        .output()?;
 
-    let mut input_context = format::input(input_path).expect("Input file opened");
-
-    // Find the first audio stream
-    let input_stream = input_context
-        .streams()
-        .find(|s| s.parameters().medium() == media::Type::Audio)
-        .ok_or("No audio stream found")?;
-
-    let audio_stream_index = input_stream.index();
-    let mut hasher = md5::Context::new();
-
-    // Read packets and hash their data
-    for (_, packet) in input_context.packets() {
-        if packet.stream() == audio_stream_index {
-            hasher.write_all(packet.data().ok_or("Bad packet read")?)?;
-        }
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout)
+            .trim()
+            .strip_prefix("MD5=")
+            .unwrap()
+            .to_string())
+    } else {
+        Err(format!("FFmpeg failed: {}", String::from_utf8_lossy(&output.stderr)).into())
     }
-
-    Ok(format!("{:x}", hasher.compute()))
 }
 
 #[cfg(test)]
