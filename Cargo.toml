@@ -16,6 +16,7 @@ ffmpeg-next = "7.1.0"
 figment = { version = "0.10.19", features = ["serde_yaml", "yaml", "test"] }
 httpmock = "0.7.0"
 id3 = "1.13.1"
+md5 = "0.7.0"
 pretty_assertions = "1.4.0"
 regex = "1.10.5"
 reqwest = { version = "0.12.5", features = ["json", "cookies"] }
