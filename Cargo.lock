@@ -3523,6 +3523,7 @@ dependencies = [
  "clap_derive",
  "console",
  "figment",
+ "hex",
  "httpmock",
  "id3",
  "md5",

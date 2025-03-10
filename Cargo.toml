@@ -13,6 +13,7 @@ clap = { version = "4.5.8", features = ["derive"] }
 clap_derive = "4.5.8"
 console = "0.15.8"
 figment = { version = "0.10.19", features = ["serde_yaml", "yaml", "test"] }
+hex = "0.4.3"
 httpmock = "0.7.0"
 id3 = "1.13.1"
 md5 = "0.7.0"
