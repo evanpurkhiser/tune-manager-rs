@@ -1,61 +1,52 @@
-use ffmpeg_next::{Rational, codec, encoder, format, media};
-use std::path::Path;
+use std::{
+    path::{Path, PathBuf},
+    process::Command,
+};
 
-pub fn to_aiff(input_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize the ffmpeg library
-    ffmpeg_next::init()?;
-
+/// Converts the given file audio file (usually wav) an AIFF file, copying the audio stream
+/// directly without transcoding.
+pub fn to_aiff(input_path: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let output_path = input_path.with_extension("aiff");
 
-    let mut input_context = format::input(input_path).expect("Input file opened");
-    let mut output_context = format::output(&output_path).expect("Output file opened");
+    let input = input_path.to_str().ok_or("Invalid input path")?;
+    let output = output_path.to_str().unwrap();
 
-    let mut stream_mapping = vec![0; input_context.nb_streams() as _];
-    let mut ist_time_bases = vec![Rational(0, 1); input_context.nb_streams() as _];
-    let mut ost_index = 0;
+    let output = Command::new("ffmpeg")
+        .args(["-i", input, "-c:a", "copy", output])
+        .output()?;
 
-    for (ist_index, ist) in input_context.streams().enumerate() {
-        let ist_medium = ist.parameters().medium();
-        if ist_medium != media::Type::Audio
-            && ist_medium != media::Type::Video
-            && ist_medium != media::Type::Subtitle
-        {
-            stream_mapping[ist_index] = -1;
-            continue;
-        }
-
-        stream_mapping[ist_index] = ost_index;
-        ist_time_bases[ist_index] = ist.time_base();
-        ost_index += 1;
-        let mut ost = output_context
-            .add_stream(encoder::find(codec::Id::None))
-            .unwrap();
-        ost.set_parameters(ist.parameters());
-        // We need to set codec_tag to 0 lest we run into incompatible codec tag
-        // issues when muxing into a different container format. Unfortunately
-        // there's no high level API to do this (yet).
-        unsafe {
-            (*ost.parameters().as_mut_ptr()).codec_tag = 0;
-        }
+    if output.status.success() {
+        Ok(output_path)
+    } else {
+        Err(format!("FFmpeg failed: {}", String::from_utf8_lossy(&output.stderr)).into())
     }
+}
 
-    output_context.set_metadata(input_context.metadata().to_owned());
-    output_context.write_header().unwrap();
+#[cfg(test)]
+mod test {
+    use std::{
+        env::{join_paths, temp_dir},
+        fs::{copy, exists},
+        io::Error,
+    };
 
-    for (stream, mut packet) in input_context.packets() {
-        let ist_index = stream.index();
-        let ost_index = stream_mapping[ist_index];
-        if ost_index < 0 {
-            continue;
-        }
-        let ost = output_context.stream(ost_index as _).unwrap();
-        packet.rescale_ts(ist_time_bases[ist_index], ost.time_base());
-        packet.set_position(-1);
-        packet.set_stream(ost_index as _);
-        packet.write_interleaved(&mut output_context).unwrap();
+    use crate::{media_hash, tests::fixture_path};
+
+    use super::to_aiff;
+
+    #[test]
+    fn test_to_aiff() -> Result<(), Error> {
+        let dir = temp_dir();
+        let target = join_paths([dir.to_str().unwrap(), "example.wav"]).unwrap();
+
+        copy(fixture_path("example.wav"), &target)?;
+        let aiff_file = to_aiff(target.as_ref()).unwrap();
+
+        assert!(exists(&aiff_file)?);
+        assert_eq!(
+            media_hash::compute(target.as_ref()).unwrap(),
+            media_hash::compute(&aiff_file).unwrap()
+        );
+        Ok(())
     }
-
-    output_context.write_trailer().unwrap();
-
-    Ok(())
 }
