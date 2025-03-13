@@ -1,14 +1,29 @@
 use std::{
+    io,
     path::{Path, PathBuf},
     process::Command,
 };
 
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum ConvertError {
+    #[error("Invald input path")]
+    BadPath,
+
+    #[error("Unable to execute ffmpeg command")]
+    Command(#[from] io::Error),
+
+    #[error("Conversion failed: {0}")]
+    FFMpeg(String),
+}
+
 /// Converts the given file audio file (usually wav) an AIFF file, copying the audio stream
 /// directly without transcoding.
-pub fn to_aiff(input_path: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
+pub fn to_aiff(input_path: &Path) -> Result<PathBuf, ConvertError> {
     let output_path = input_path.with_extension("aiff");
 
-    let input = input_path.to_str().ok_or("Invalid input path")?;
+    let input = input_path.to_str().ok_or(ConvertError::BadPath)?;
     let output = output_path.to_str().unwrap();
 
     let output = Command::new("ffmpeg")
@@ -18,7 +33,9 @@ pub fn to_aiff(input_path: &Path) -> Result<PathBuf, Box<dyn std::error::Error>>
     if output.status.success() {
         Ok(output_path)
     } else {
-        Err(format!("FFmpeg failed: {}", String::from_utf8_lossy(&output.stderr)).into())
+        Err(ConvertError::FFMpeg(
+            String::from_utf8_lossy(&output.stderr).to_string(),
+        ))
     }
 }
 
