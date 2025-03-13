@@ -1,9 +1,26 @@
-use std::{path::Path, process::Command};
+use std::{io, path::Path, process::Command};
+
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum MediaHashError {
+    #[error("Invald input path")]
+    BadPath,
+
+    #[error("Unable to execute ffmpeg command")]
+    Command(#[from] io::Error),
+
+    #[error("Conversion failed: {0}")]
+    FFMpeg(String),
+
+    #[error("Unable to decode mediahash from ffmpeg")]
+    Hashing(#[from] hex::FromHexError),
+}
 
 /// Computes a MD5 hash of the audio stream of the provided input file. The hash will not change as
 /// the media files metadata is updated.
-pub fn compute(input_path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let file_path = input_path.to_str().ok_or("Invalid input path")?;
+pub fn compute(input_path: &Path) -> Result<Vec<u8>, MediaHashError> {
+    let file_path = input_path.to_str().ok_or(MediaHashError::BadPath)?;
     let output = Command::new("ffmpeg")
         .args(["-i", file_path, "-c:a", "copy", "-f", "md5", "-"])
         .output()?;
@@ -16,7 +33,9 @@ pub fn compute(input_path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>>
             .to_string();
         Ok(hex::decode(md5_str)?)
     } else {
-        Err(format!("FFmpeg failed: {}", String::from_utf8_lossy(&output.stderr)).into())
+        Err(MediaHashError::FFMpeg(
+            String::from_utf8_lossy(&output.stderr).to_string(),
+        ))
     }
 }
 
