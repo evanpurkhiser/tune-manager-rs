@@ -6,10 +6,16 @@ use std::{
 
 use thiserror::Error;
 
+/// Valid file extensions that can be converted to
+static CONVERTABLE_EXTENSIONS: &[&str] = &["wav"];
+
 #[derive(Error, Debug)]
 pub enum ConvertError {
     #[error("Invald input path")]
     BadPath,
+
+    #[error("Cannot convert {0} to aiff file")]
+    UnsupportedType(String),
 
     #[error("Unable to execute ffmpeg command")]
     Command(#[from] io::Error),
@@ -21,8 +27,17 @@ pub enum ConvertError {
 /// Converts the given file audio file (usually wav) an AIFF file, copying the audio stream
 /// directly without transcoding.
 pub fn to_aiff(input_path: &Path) -> Result<PathBuf, ConvertError> {
-    let output_path = input_path.with_extension("aiff");
+    let original_ext = input_path
+        .extension()
+        .and_then(|s| s.to_ascii_lowercase().into_string().ok())
+        .ok_or(ConvertError::BadPath)?;
 
+    // Only supports converting wav to AIFF
+    if !CONVERTABLE_EXTENSIONS.contains(&original_ext.as_str()) {
+        return Err(ConvertError::UnsupportedType(original_ext));
+    }
+
+    let output_path = input_path.with_extension("aiff");
     let input = input_path.to_str().ok_or(ConvertError::BadPath)?;
     let output = output_path.to_str().unwrap();
 
@@ -61,7 +76,7 @@ mod test {
 
         assert!(exists(&aiff_file)?);
         assert_eq!(
-            media_hash::compute(target.as_ref()).unwrap(),
+            media_hash::compute(target).unwrap(),
             media_hash::compute(&aiff_file).unwrap()
         );
         Ok(())
