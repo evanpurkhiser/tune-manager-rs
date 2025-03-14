@@ -186,6 +186,7 @@ impl Track {
             self.metadata
                 .file_path
                 .extension()
+                .map(|s| s.to_ascii_lowercase())
                 .unwrap()
                 .to_str()
                 .unwrap(),
@@ -212,7 +213,7 @@ mod tests {
         fn default() -> Self {
             Self {
                 file_path: PathBuf::from(
-                    "Publisher/[RLS] Album/Disc 2/01. [10A] Artist - Title.mp3",
+                    "Publisher/[RLS] Album/Disc 2/01. [10A] Artist - Title.MP3",
                 ),
                 mtime: 1234567890,
             }
