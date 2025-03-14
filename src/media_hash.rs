@@ -10,7 +10,7 @@ pub enum MediaHashError {
     #[error("Unable to execute ffmpeg command")]
     Command(#[from] io::Error),
 
-    #[error("Conversion failed: {0}")]
+    #[error("Hashing failed: {0}")]
     FFMpeg(String),
 
     #[error("Unable to decode mediahash from ffmpeg")]
