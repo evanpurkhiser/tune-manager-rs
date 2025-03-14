@@ -1,8 +1,12 @@
-use std::fs;
+use std::{fs, path::PathBuf};
 
-pub fn read_fixture(path: &str) -> String {
+/// Get's the absolute path of a fixture file.
+pub fn fixture_path(path: &str) -> PathBuf {
     let root = env!("CARGO_MANIFEST_DIR");
-    let fixture_path = format!("{}/fixtures/{}", root, path);
+    format!("{}/fixtures/{}", root, path).into()
+}
 
-    fs::read_to_string(fixture_path).expect("Failed to load test fixtures")
+// Reads the contents of a fixture file as a string
+pub fn read_fixture(path: &str) -> String {
+    fs::read_to_string(fixture_path(path)).expect("Failed to load test fixtures")
 }
