@@ -14,7 +14,7 @@ pub enum MediaHashError {
     FFMpeg(String),
 
     #[error("Unable to decode mediahash from ffmpeg")]
-    Hashing(#[from] hex::FromHexError),
+    HashDecode(#[from] hex::FromHexError),
 }
 
 /// Computes a MD5 hash of the audio stream of the provided input file. The hash will not change as
