@@ -84,7 +84,7 @@ impl From<Tag> for TrackTags {
     }
 }
 
-const PATH_REPLACEMENTS: LazyLock<Vec<(Regex, &str)>> = LazyLock::new(|| {
+static PATH_REPLACEMENTS: LazyLock<Vec<(Regex, &str)>> = LazyLock::new(|| {
     vec![
         (Regex::new(r#"[\*\?\|:"<>]|^\.|\.$"#).unwrap(), ""),
         (Regex::new(r#"[\x00-\x1f]"#).unwrap(), "_"),
