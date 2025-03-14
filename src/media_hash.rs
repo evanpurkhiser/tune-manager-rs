@@ -19,8 +19,11 @@ pub enum MediaHashError {
 
 /// Computes a MD5 hash of the audio stream of the provided input file. The hash will not change as
 /// the media files metadata is updated.
-pub fn compute(input_path: &Path) -> Result<Vec<u8>, MediaHashError> {
-    let file_path = input_path.to_str().ok_or(MediaHashError::BadPath)?;
+pub fn compute(input_path: impl AsRef<Path>) -> Result<Vec<u8>, MediaHashError> {
+    let file_path = input_path
+        .as_ref()
+        .to_str()
+        .ok_or(MediaHashError::BadPath)?;
     let output = Command::new("ffmpeg")
         .args(["-i", file_path, "-c:a", "copy", "-f", "md5", "-"])
         .output()?;
