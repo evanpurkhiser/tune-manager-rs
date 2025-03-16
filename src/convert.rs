@@ -6,9 +6,6 @@ use std::{
 
 use thiserror::Error;
 
-/// Valid file extensions that can be converted to
-static CONVERTABLE_EXTENSIONS: &[&str] = &["wav"];
-
 #[derive(Error, Debug)]
 pub enum ConvertError {
     #[error("Invald input path")]
@@ -26,23 +23,29 @@ pub enum ConvertError {
 
 /// Converts the given file audio file (usually wav) an AIFF file, copying the audio stream
 /// directly without transcoding.
-pub fn to_aiff(input_path: &Path) -> Result<PathBuf, ConvertError> {
-    let original_ext = input_path
+pub fn to_aiff(input_path: impl AsRef<Path>) -> Result<PathBuf, ConvertError> {
+    let file_path = input_path.as_ref();
+    let original_ext = file_path
         .extension()
         .and_then(|s| s.to_ascii_lowercase().into_string().ok())
         .ok_or(ConvertError::BadPath)?;
 
     // Only supports converting wav to AIFF
-    if !CONVERTABLE_EXTENSIONS.contains(&original_ext.as_str()) {
+    if !matches!(original_ext.as_str(), "wav" | "flac" | "m4a") {
         return Err(ConvertError::UnsupportedType(original_ext));
     }
 
-    let output_path = input_path.with_extension("aiff");
-    let input = input_path.to_str().ok_or(ConvertError::BadPath)?;
+    let output_path = file_path.with_extension("aiff");
+    let input = file_path.to_str().ok_or(ConvertError::BadPath)?;
     let output = output_path.to_str().unwrap();
 
+    let output_codec = match original_ext.as_str() {
+        "wav" => "copy",
+        _ => "pcm_s16be",
+    };
+
     let output = Command::new("ffmpeg")
-        .args(["-i", input, "-c:a", "copy", output])
+        .args(["-i", input, "-c:a", output_codec, output])
         .output()?;
 
     if output.status.success() {
@@ -72,11 +75,11 @@ mod test {
         let target = join_paths([dir.to_str().unwrap(), "example.wav"]).unwrap();
 
         copy(fixture_path("example.wav"), &target)?;
-        let aiff_file = to_aiff(target.as_ref()).unwrap();
+        let aiff_file = to_aiff(&target).unwrap();
 
         assert!(exists(&aiff_file)?);
         assert_eq!(
-            media_hash::compute(target).unwrap(),
+            media_hash::compute(&target).unwrap(),
             media_hash::compute(&aiff_file).unwrap()
         );
         Ok(())
