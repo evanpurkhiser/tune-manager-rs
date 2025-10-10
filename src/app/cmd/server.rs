@@ -4,7 +4,7 @@ use tracing::info;
 
 use crate::app::config::Config;
 
-pub fn run(config: &Config) -> io::Result<()> {
+pub fn run(_config: &Config) -> io::Result<()> {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
