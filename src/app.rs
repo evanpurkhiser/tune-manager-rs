@@ -20,5 +20,8 @@ pub fn execute() -> io::Result<()> {
     match app.command {
         cli::Commands::Server => cmd::server::run(&config),
         cli::Commands::Test => cmd::test::run(&config),
+        cli::Commands::Debug { command } => match command {
+            cli::DebugCommands::Ai { path } => cmd::debug::ai::run(path),
+        },
     }
 }

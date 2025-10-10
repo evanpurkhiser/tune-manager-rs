@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/release.schema.json",
+  "title": "PromptResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tracks"],
+  "properties": {
+    "tracks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Track" }
+    }
+  },
+  "$defs": {
+    "Artist": {
+      "type": "string",
+      "description": "Full primary artist string. Vocalist appears at the END as `Ft. Name` (with period). If exactly two artists, join with `&` or `vs` (depending on what's already there). Three or more artists use commas. Do NOT put vocalist in the title."
+    },
+    "Title": {
+      "type": "string",
+      "description": "Track title. Keep descriptors like `(Extended Mix)` and remix tags like `(Artist Name Remix)`. Do NOT include `(Original Mix)`."
+    },
+    "Album": {
+      "type": ["string", "null"],
+      "description": "Album/release title. Use null for single-track releases. If there is only one file present, but the track indicates it is part of a release with multiple tracks, do NOT consider it as a single, keep track disc and album."
+    },
+    "Remixer": {
+      "type": ["string", "null"],
+      "description": "Populate if the title contains a remix tag `(Artist Name Remix)`. The remixer name should match that tag and follow the same artist formatting rules, else null."
+    },
+    "Publisher": {
+      "type": ["string", "null"],
+      "description": "Label/publisher. All tracks in the same release should share the same publisher. May be null if unknown."
+    },
+    "CatalogId": {
+      "type": ["string", "null"],
+      "description": "Catalog ID for the release. All tracks in the same release should share the same catalog ID. May be null if unknown."
+    },
+    "Year": {
+      "type": ["integer", "null"],
+      "aximum": 2100,
+      "description": "Release year, or null if unknown."
+    },
+    "Genre": {
+      "type": "string",
+      "description": "Primary genre as free text. Common values: Hardcore, Trance, Hard Trance."
+    },
+    "DiscNumber": {
+      "type": ["string", "null"],
+      "description": "Disc field formatted as `d/a` where `d` is the disc number and `a` is total discs. Omit for true singles. For a single-disc multi-track release, use `1/1`."
+    },
+    "TrackNumber": {
+      "type": ["string", "null"],
+      "description": "Track field formatted as `t/a` where `t` is track number and `a` is total tracks in the disc/release. Use null for singles. `1/1` is NEVER valid."
+    },
+    "Track": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artist",
+        "title",
+        "album",
+        "remixer",
+        "publisher",
+        "catalog_id",
+        "year",
+        "genre",
+        "disc",
+        "track"
+      ],
+      "properties": {
+        "artist": { "$ref": "#/$defs/Artist" },
+        "title": { "$ref": "#/$defs/Title" },
+        "album": { "$ref": "#/$defs/Album" },
+        "remixer": { "$ref": "#/$defs/Remixer" },
+        "publisher": { "$ref": "#/$defs/Publisher" },
+        "catalog_id": { "$ref": "#/$defs/CatalogId" },
+        "year": { "$ref": "#/$defs/Year" },
+        "genre": { "$ref": "#/$defs/Genre" },
+        "disc": { "$ref": "#/$defs/DiscNumber" },
+        "track": { "$ref": "#/$defs/TrackNumber" }
+      },
+      "description": "Single track entry following the formatting rules."
+    }
+  }
+}

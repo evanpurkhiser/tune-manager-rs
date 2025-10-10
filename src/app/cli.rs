@@ -57,4 +57,19 @@ pub enum Commands {
 
     #[clap(about = "Testing things out")]
     Test,
+
+    #[clap(about = "Debug utilities", subcommand_required = true)]
+    Debug {
+        #[clap(subcommand)]
+        command: DebugCommands,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum DebugCommands {
+    #[clap(about = "Process tracks with AI and print results")]
+    Ai {
+        #[clap(help = "Path to directory containing music files", value_hint = ValueHint::DirPath)]
+        path: PathBuf,
+    },
 }
