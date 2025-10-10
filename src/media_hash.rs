@@ -4,7 +4,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum MediaHashError {
-    #[error("Invald input path")]
+    #[error("Invalid input path")]
     BadPath,
 
     #[error("Unable to execute ffmpeg command")]
@@ -52,13 +52,13 @@ mod tests {
 
     #[test]
     fn test_wav_media_hash() -> Result<(), Box<dyn Error>> {
-        let hash = compute(&fixture_path("example.wav"))?;
+        let hash = compute(fixture_path("example.wav"))?;
         assert_eq!(hex::encode(hash), "4092e62ffa902b289811c30f3d8d3794");
         Ok(())
     }
     #[test]
     fn test_aiff_media_hash() -> Result<(), Box<dyn Error>> {
-        let hash = compute(&fixture_path("example.aiff"))?;
+        let hash = compute(fixture_path("example.aiff"))?;
         assert_eq!(hex::encode(hash), "4092e62ffa902b289811c30f3d8d3794");
         Ok(())
     }
