@@ -8,7 +8,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ConvertError {
-    #[error("Invald input path")]
+    #[error("Invalid input path")]
     BadPath,
 
     #[error("Cannot convert {0} to aiff file")]

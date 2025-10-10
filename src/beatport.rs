@@ -139,7 +139,7 @@ impl<AuthState> BeatportSource<AuthState> {
             .send()
             .await?;
 
-        // Reques session details to get our auth token.
+        // Request session details to get our auth token.
         let session_resp: Value = self
             .client
             .get(format!("{}/api/auth/session", self.base_url_auth))

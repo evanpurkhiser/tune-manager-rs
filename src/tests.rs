@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-/// Get's the absolute path of a fixture file.
+/// Gets the absolute path of a fixture file.
 pub fn fixture_path(path: &str) -> PathBuf {
     let root = env!("CARGO_MANIFEST_DIR");
     format!("{}/fixtures/{}", root, path).into()

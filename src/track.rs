@@ -94,7 +94,7 @@ static PATH_REPLACEMENTS: LazyLock<Vec<(Regex, &str)>> = LazyLock::new(|| {
 });
 
 impl Track {
-    /// Constructes the cononical path that the track should be located at derived from it's tags.
+    /// Construct's the canonical path that the track should be located at derived from it's tags.
     pub fn cononical_path(&self) -> PathBuf {
         let tags = &self.tags;
         let mut path_parts = vec![];
