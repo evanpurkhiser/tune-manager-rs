@@ -238,7 +238,7 @@ impl BeatportSource<Authenticated> {
     ) -> Result<BeatportTrackInfo, BeatportApiError> {
         let token = &self.auth_state.token;
 
-        let url = format!("{}/v4/catalog/tracks/{}", self.base_url_apis, track_id);
+        let url = format!("{}/v4/catalog/tracks/{}/", self.base_url_apis, track_id);
         let track_resp = self
             .client
             .get(url)
@@ -252,7 +252,7 @@ impl BeatportSource<Authenticated> {
             .as_u64()
             .ok_or(BeatportApiError::MissingRelaseId)?;
 
-        let url = format!("{}/v4/catalog/releases/{}", self.base_url_apis, release_id);
+        let url = format!("{}/v4/catalog/releases/{}/", self.base_url_apis, release_id);
         let release_resp = self
             .client
             .get(url)
@@ -374,7 +374,7 @@ mod tests {
 
         server.mock(|when, then| {
             when.method(GET)
-                .path("/v4/catalog/tracks/1234")
+                .path("/v4/catalog/tracks/1234/")
                 .header("Authorization", format!("Bearer {}", token));
             then.status(200)
                 .header("content-type", "application/json")
@@ -382,7 +382,7 @@ mod tests {
         });
         server.mock(|when, then| {
             when.method(GET)
-                .path("/v4/catalog/releases/439354")
+                .path("/v4/catalog/releases/439354/")
                 .header("Authorization", format!("Bearer {}", token));
             then.status(200)
                 .header("content-type", "application/json")
