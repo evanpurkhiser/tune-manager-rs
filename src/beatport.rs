@@ -1,11 +1,16 @@
 use std::{collections::HashMap, sync::LazyLock};
 
 use regex::Regex;
-use serde_json::Value;
+use serde_json::{Value, json};
 use thiserror::Error;
 
 static TRACK_PATH: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^/track/[^/]+/(?<track_id>\d+)$").unwrap());
+
+// OAuth constants extracted from Beatport API docs example JavaScript app
+// since public API application registration is not available
+static OAUTH_CLIENT_ID: &str = "0GIvkCltVIuPkkwSJHp6NDb3s0potTjLBQr388Dd";
+static OAUTH_REDIRECT_PATH: &str = "/v4/auth/o/post-message/";
 
 /// Extracts the track ID from a Beatport URL. Invalid beatport URLS will return None.
 pub fn try_extract_track_id(maybe_beatport_url: &str) -> Option<u32> {
@@ -37,8 +42,8 @@ pub enum BeatportApiError {
     #[error("Missing release ID for track")]
     MissingRelaseId,
 
-    #[error("Problem during authentication")]
-    AuthenticationError,
+    #[error("Problem during authentication: {0}")]
+    AuthenticationError(String),
 }
 
 #[derive(Debug, PartialEq)]
@@ -62,6 +67,10 @@ impl Authenticated {
     fn new(token: String) -> Self {
         Self { token }
     }
+
+    fn token(&self) -> &str {
+        &self.token
+    }
 }
 
 /// The username and password credentials required to authenticate with the beatport API to
@@ -73,7 +82,6 @@ pub struct BeatportCredentials {
 
 pub struct BeatportSource<AuthState = Unauthenticated> {
     client: reqwest::Client,
-    base_url_auth: String,
     base_url_apis: String,
     auth_state: AuthState,
     genre_translation: Option<HashMap<String, String>>,
@@ -86,12 +94,12 @@ where
     fn default() -> Self {
         let client = reqwest::ClientBuilder::new()
             .cookie_store(true)
+            .redirect(reqwest::redirect::Policy::none())
             .build()
             .unwrap();
 
         Self {
             client,
-            base_url_auth: "https://www.beatport.com".to_string(),
             base_url_apis: "https://api.beatport.com".to_string(),
             auth_state: AuthState::default(),
             genre_translation: None,
@@ -100,59 +108,93 @@ where
 }
 
 impl<AuthState> BeatportSource<AuthState> {
-    /// Authneticate with the production beatport.com app using username and password credentials.
+    /// Authenticate with Beatport using standard OAuth flow with username/password credentials.
     async fn get_token(
         &self,
         credentials: BeatportCredentials,
     ) -> Result<String, BeatportApiError> {
-        // XXX: This authentication does NOT use the typical oAuth flow that you might expect,
-        // given that Beatport does document their APIs. There's no easy way to obtain an oAuth
-        // token, so instead we use the production www.beatport.com APIs to do authentication,
-        // which gives us a token that can be used with api.beatport.com
-        //
-        // This is wh there is a `base_url_auth` and a `base_url_apis`.
+        let redirect_uri = &format!("{}{}", self.base_url_apis, OAUTH_REDIRECT_PATH);
 
-        // Retrieve the CSRF token used when authenticating
-        let csrf_resp: Value = self
+        // Step 1: Login with username/password
+        let login_response = self
             .client
-            .get(format!("{}/api/auth/csrf", self.base_url_auth))
+            .post(format!("{}/v4/auth/login/", self.base_url_apis))
+            .json(&json!({
+                "username": credentials.username,
+                "password": credentials.password
+            }))
             .send()
-            .await?
-            .json()
             .await?;
-        let csrf_token = csrf_resp["csrfToken"]
-            .as_str()
-            .map(str::to_string)
-            .ok_or(BeatportApiError::AuthenticationError)?;
 
-        // Do authentication using credentials. This will resply with a set-cookie that reqwest
-        // will use in the next call to retrieve the auth token.
-        self.client
-            .post(format!("{}/api/auth/callback/beatport", self.base_url_auth))
-            .form(&[
-                ("username", credentials.username),
-                ("password", credentials.password),
-                ("csrfToken", csrf_token),
-                ("json", "true".to_string()),
-                ("redirect", "false".to_string()),
+        if !login_response.status().is_success() {
+            return Err(BeatportApiError::AuthenticationError(
+                "Login failed".to_string(),
+            ));
+        }
+
+        // Step 2: Get authorization code
+        let auth_response = self
+            .client
+            .get(format!("{}/v4/auth/o/authorize/", self.base_url_apis))
+            .query(&[
+                ("response_type", "code"),
+                ("client_id", OAUTH_CLIENT_ID),
+                ("redirect_uri", redirect_uri),
             ])
             .send()
             .await?;
 
-        // Request session details to get our auth token.
-        let session_resp: Value = self
+        // Extract authorization code from the redirect location
+        let status = auth_response.status();
+        let headers = auth_response.headers().clone();
+
+        if !status.is_success() && !status.is_redirection() {
+            return Err(BeatportApiError::AuthenticationError(
+                "Authorization failed".to_string(),
+            ));
+        }
+
+        let location_header = headers
+            .get("location")
+            .and_then(|h| h.to_str().ok())
+            .ok_or(BeatportApiError::AuthenticationError(
+                "Missing location header in authorization response".to_string(),
+            ))?;
+
+        let auth_code = url::Url::parse(&format!("{}{}", self.base_url_apis, location_header))
+            .map_err(|_| {
+                BeatportApiError::AuthenticationError("Failed to parse redirect URL".to_string())
+            })?
+            .query_pairs()
+            .find(|(key, _)| key == "code")
+            .map(|(_, value)| value.into_owned())
+            .ok_or(BeatportApiError::AuthenticationError(
+                "Authorization code not found in redirect URL".to_string(),
+            ))?;
+
+        // Step 3: Exchange authorization code for access token
+        let token_resp = self
             .client
-            .get(format!("{}/api/auth/session", self.base_url_auth))
+            .post(format!("{}/v4/auth/o/token/", self.base_url_apis))
+            .form(&[
+                ("code", auth_code.as_str()),
+                ("grant_type", "authorization_code"),
+                ("redirect_uri", redirect_uri),
+                ("client_id", OAUTH_CLIENT_ID),
+            ])
             .send()
-            .await?
-            .json()
             .await?;
-        let token = session_resp["token"]["accessToken"]
+
+        let token_response: Value = token_resp.json().await?;
+
+        let access_token = token_response["access_token"]
             .as_str()
             .map(str::to_string)
-            .ok_or(BeatportApiError::AuthenticationError)?;
+            .ok_or(BeatportApiError::AuthenticationError(
+                "Access token not found in token response".to_string(),
+            ))?;
 
-        Ok(token)
+        Ok(access_token)
     }
 }
 
@@ -175,6 +217,11 @@ impl BeatportSource<Unauthenticated> {
 }
 
 impl BeatportSource<Authenticated> {
+    /// Get the authentication token
+    pub fn token(&self) -> &str {
+        self.auth_state.token()
+    }
+
     /// Update the authentication token in this client.
     pub async fn reauthenticate(
         mut self,
@@ -239,7 +286,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::{
-        Authenticated, BeatportCredentials, BeatportSource, BeatportTrackInfo, try_extract_track_id,
+        Authenticated, BeatportCredentials, BeatportSource, BeatportTrackInfo, OAUTH_CLIENT_ID,
+        try_extract_track_id,
     };
     use crate::tests::read_fixture;
 
@@ -266,27 +314,45 @@ mod tests {
     async fn test_authenticate() {
         let server = MockServer::start();
 
-        server.mock(|when, then| {
-            when.method(GET).path("/api/auth/csrf");
-            then.status(200)
-                .header("content-type", "application/json")
-                .body(read_fixture("beatport_csrf.json"));
-        });
+        // Mock login endpoint
         server.mock(|when, then| {
             when.method(POST)
-                .path("/api/auth/callback/beatport")
-                .x_www_form_urlencoded_tuple("username", "evan")
-                .x_www_form_urlencoded_tuple("password", "hunter2")
-                .x_www_form_urlencoded_tuple("csrfToken", "example-csrf");
-            then.status(200);
+                .path("/v4/auth/login/")
+                .header("content-type", "application/json")
+                .json_body(serde_json::json!({
+                    "username": "evan",
+                    "password": "hunter2"
+                }));
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(read_fixture("beatport_login.json"));
         });
+
+        // Mock authorization endpoint
         server.mock(|when, then| {
-            when.method(GET).path("/api/auth/session");
-            then.status(200).body(read_fixture("beatport_session.json"));
+            when.method(GET)
+                .path("/v4/auth/o/authorize/")
+                .query_param("response_type", "code")
+                .query_param("client_id", OAUTH_CLIENT_ID);
+            then.status(302).header(
+                "location",
+                "/v4/auth/o/post-message/?code=test-auth-code-123&target=https://api.beatport.com",
+            );
+        });
+
+        // Mock token exchange endpoint
+        server.mock(|when, then| {
+            when.method(POST)
+                .path("/v4/auth/o/token/")
+                .x_www_form_urlencoded_tuple("code", "test-auth-code-123")
+                .x_www_form_urlencoded_tuple("grant_type", "authorization_code")
+                .x_www_form_urlencoded_tuple("client_id", OAUTH_CLIENT_ID);
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(read_fixture("beatport_token.json"));
         });
 
         let beatport = BeatportSource {
-            base_url_auth: server.base_url(),
             base_url_apis: server.base_url(),
             ..Default::default()
         }
@@ -297,7 +363,7 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(beatport.auth_state.token, "example-token");
+        assert_eq!(beatport.auth_state.token, "test-access-token-123");
     }
 
     #[tokio::test]
@@ -325,7 +391,6 @@ mod tests {
 
         let source = BeatportSource {
             auth_state: Authenticated::new(token.to_string()),
-            base_url_auth: server.base_url(),
             base_url_apis: server.base_url(),
             ..Default::default()
         };

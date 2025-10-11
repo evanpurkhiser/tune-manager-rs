@@ -22,6 +22,9 @@ pub fn execute() -> io::Result<()> {
         cli::Commands::Test => cmd::test::run(&config),
         cli::Commands::Debug { command } => match command {
             cli::DebugCommands::Ai { path } => cmd::debug::ai::run(path),
+            cli::DebugCommands::Beatport { username, password } => {
+                cmd::debug::beatport::run(username, password)
+            }
         },
     }
 }
