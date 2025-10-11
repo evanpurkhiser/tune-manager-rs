@@ -55,9 +55,6 @@ pub enum Commands {
     )]
     Server,
 
-    #[clap(about = "Testing things out")]
-    Test,
-
     #[clap(about = "Debug utilities", subcommand_required = true)]
     Debug {
         #[clap(subcommand)]
