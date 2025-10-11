@@ -6,6 +6,7 @@ mod beatport;
 mod convert;
 mod fields;
 mod file_utils;
+mod keyfinder;
 mod logging;
 mod media_hash;
 mod tags;
