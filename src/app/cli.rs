@@ -69,11 +69,13 @@ pub enum DebugCommands {
         #[clap(help = "Path to directory containing music files", value_hint = ValueHint::DirPath)]
         path: PathBuf,
     },
-    #[clap(about = "Test Beatport authentication and print token")]
+    #[clap(about = "Test Beatport authentication and fetch track details from file")]
     Beatport {
         #[clap(long, help = "Beatport username")]
         username: String,
         #[clap(long, help = "Beatport password")]
         password: String,
+        #[clap(long, help = "Path to media file to read Beatport URL from", value_hint = ValueHint::FilePath)]
+        file: Option<PathBuf>,
     },
 }
