@@ -15,10 +15,30 @@ use serde::Serialize;
 use serde_json::Value;
 use thiserror::Error;
 
-use crate::track::Track;
+use crate::{track::Track, track::TrackTags};
 
 mod schema_types {
     typify::import_types!("src/schema/track-prompt.json");
+}
+
+impl schema_types::Track {
+    /// Updates the provided TrackTags with information from AI processing
+    pub fn update_track_tags(&self, tags: &mut TrackTags) {
+        tags.artist = Some(self.artist.clone().into());
+        tags.title = Some(self.title.clone().into());
+        tags.album = self.album.clone().into();
+        tags.remixer = self.remixer.clone().into();
+        tags.publisher = self.publisher.clone().into();
+        tags.catalog_id = self.catalog_id.clone().into();
+        tags.genre = self.genre.clone().into();
+        tags.year = self.year.map(|y| y.to_string());
+
+        // Parse disc and track fields from AI response
+        tags.disc = self.disc.as_ref().and_then(|d| d.parse().ok());
+        tags.track = self.track.as_ref().and_then(|d| d.parse().ok());
+
+        // Note: key and bpm are preserved from previous stages and not updated by AI
+    }
 }
 
 static FORMAT: LazyLock<TextResponseFormat> = LazyLock::new(|| {
@@ -239,6 +259,98 @@ mod tests {
         assert!(result.contains("Test Title"));
         assert!(result.contains("Test Album"));
         assert!(result.contains("TEST001"));
+    }
+
+    #[test]
+    fn test_update_track_tags() {
+        use crate::{
+            fields::{Count, CountField},
+            track::TrackTags,
+        };
+
+        let mut tags = TrackTags::default();
+
+        // Create AI track response
+        let ai_track = schema_types::Track {
+            artist: "Test Artist Ft. Vocalist".to_string().into(),
+            title: "Test Title (Extended Mix)".to_string().into(),
+            album: Some("Test Album".to_string()).into(),
+            remixer: Some("Test Remixer".to_string()).into(),
+            publisher: Some("Test Label".to_string()).into(),
+            catalog_id: Some("TEST123".to_string()).into(),
+            year: Some(2023).into(),
+            genre: Some("Hardcore".to_string()).into(),
+            disc: Some("1/2".to_string()).into(),
+            track: Some("3/10".to_string()).into(),
+        };
+
+        // Set some initial values that should be preserved
+        tags.key = Some("10A".to_string());
+        tags.bpm = Some("140".to_string());
+
+        ai_track.update_track_tags(&mut tags);
+
+        // Check AI updates
+        assert_eq!(tags.artist, Some("Test Artist Ft. Vocalist".to_string()));
+        assert_eq!(tags.title, Some("Test Title (Extended Mix)".to_string()));
+        assert_eq!(tags.album, Some("Test Album".to_string()));
+        assert_eq!(tags.remixer, Some("Test Remixer".to_string()));
+        assert_eq!(tags.publisher, Some("Test Label".to_string()));
+        assert_eq!(tags.catalog_id, Some("TEST123".to_string()));
+        assert_eq!(tags.year, Some("2023".to_string()));
+        assert_eq!(tags.genre, Some("Hardcore".to_string()));
+        assert_eq!(
+            tags.disc,
+            Some(CountField::Valid(Count {
+                number: 1u8,
+                total: 2u8
+            }))
+        );
+        assert_eq!(
+            tags.track,
+            Some(CountField::Valid(Count {
+                number: 3u8,
+                total: 10u8
+            }))
+        );
+
+        // Check preserved values
+        assert_eq!(tags.key, Some("10A".to_string()));
+        assert_eq!(tags.bpm, Some("140".to_string()));
+    }
+
+    #[test]
+    fn test_update_track_tags_single_track() {
+        use crate::track::TrackTags;
+
+        let mut tags = TrackTags::default();
+
+        // Create AI track response for a single
+        let ai_track = schema_types::Track {
+            artist: "Single Artist".to_string().into(),
+            title: "Single Title".to_string().into(),
+            album: None.into(),
+            remixer: None.into(),
+            publisher: Some("Single Label".to_string()).into(),
+            catalog_id: Some("SINGLE001".to_string()).into(),
+            year: Some(2024).into(),
+            genre: Some("Trance".to_string()).into(),
+            disc: None.into(),
+            track: None.into(),
+        };
+
+        ai_track.update_track_tags(&mut tags);
+
+        assert_eq!(tags.artist, Some("Single Artist".to_string()));
+        assert_eq!(tags.title, Some("Single Title".to_string()));
+        assert_eq!(tags.album, None);
+        assert_eq!(tags.remixer, None);
+        assert_eq!(tags.publisher, Some("Single Label".to_string()));
+        assert_eq!(tags.catalog_id, Some("SINGLE001".to_string()));
+        assert_eq!(tags.year, Some("2024".to_string()));
+        assert_eq!(tags.genre, Some("Trance".to_string()));
+        assert_eq!(tags.disc, None);
+        assert_eq!(tags.track, None);
     }
 
     #[test]

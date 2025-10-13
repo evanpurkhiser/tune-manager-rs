@@ -5,6 +5,8 @@ use regex::Regex;
 use serde_json::{Value, json};
 use thiserror::Error;
 
+use crate::{fields::Count, fields::CountField, track::TrackTags};
+
 static TRACK_PATH: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^/track/[^/]+/(?<track_id>\d+)$").unwrap());
 
@@ -57,6 +59,37 @@ pub struct BeatportTrackInfo {
     track_number: Option<u64>,
     track_total: Option<u64>,
     genre: Option<String>,
+}
+
+impl BeatportTrackInfo {
+    /// Updates the provided TrackTags with information from Beatport
+    pub fn update_track_tags(&self, tags: &mut TrackTags) {
+        if let Some(ref catalog_number) = self.catalog_number {
+            tags.catalog_id = Some(catalog_number.clone());
+        }
+
+        if let Some(ref label) = self.label {
+            tags.publisher = Some(label.clone());
+        }
+
+        if let Some(ref genre) = self.genre {
+            tags.genre = Some(genre.clone());
+        }
+
+        // Update track number if we have both track_number and track_total
+        if let (Some(track_number), Some(track_total)) = (self.track_number, self.track_total) {
+            if track_number == 1 && track_total == 1 {
+                // Single track release - clear track and disc fields
+                tags.track = None;
+                tags.disc = None;
+            } else {
+                tags.track = Some(CountField::Valid(Count {
+                    number: track_number as u8,
+                    total: track_total as u8,
+                }));
+            }
+        }
+    }
 }
 
 #[derive(Clone, Default)]
@@ -403,6 +436,56 @@ mod tests {
         .unwrap();
 
         assert_eq!(beatport.auth_state.token, "test-access-token-123");
+    }
+
+    #[test]
+    fn test_update_track_tags() {
+        use crate::{
+            fields::{Count, CountField},
+            track::TrackTags,
+        };
+
+        let mut tags = TrackTags::default();
+
+        // Test with multi-track release
+        let info = BeatportTrackInfo {
+            catalog_number: Some("TEST123".to_string()),
+            label: Some("Test Label".to_string()),
+            track_number: Some(2),
+            track_total: Some(5),
+            genre: Some("Test Genre".to_string()),
+        };
+
+        info.update_track_tags(&mut tags);
+
+        assert_eq!(tags.catalog_id, Some("TEST123".to_string()));
+        assert_eq!(tags.publisher, Some("Test Label".to_string()));
+        assert_eq!(tags.genre, Some("Test Genre".to_string()));
+        assert_eq!(
+            tags.track,
+            Some(CountField::Valid(Count {
+                number: 2u8,
+                total: 5u8
+            }))
+        );
+
+        // Test with single track release (1/1)
+        let single_info = BeatportTrackInfo {
+            catalog_number: Some("SINGLE456".to_string()),
+            label: Some("Single Label".to_string()),
+            track_number: Some(1),
+            track_total: Some(1),
+            genre: Some("Single Genre".to_string()),
+        };
+
+        let mut single_tags = TrackTags::default();
+        single_info.update_track_tags(&mut single_tags);
+
+        assert_eq!(single_tags.catalog_id, Some("SINGLE456".to_string()));
+        assert_eq!(single_tags.publisher, Some("Single Label".to_string()));
+        assert_eq!(single_tags.genre, Some("Single Genre".to_string()));
+        assert_eq!(single_tags.track, None);
+        assert_eq!(single_tags.disc, None);
     }
 
     #[tokio::test]
