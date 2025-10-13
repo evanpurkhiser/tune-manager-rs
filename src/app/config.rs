@@ -10,6 +10,12 @@ use serde::{Deserialize, Serialize};
 use crate::{app::cli, logging};
 
 #[derive(PartialEq, Debug, Serialize, Deserialize)]
+pub struct BeatportConfig {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub struct Config {
     /// The sentry DSN to use for error reporting.
     pub sentry_dsn: Option<String>,
@@ -34,6 +40,9 @@ pub struct Config {
 
     /// File types to consider when scanning the catalog and import path for music.
     pub music_file_types: Vec<String>,
+
+    /// Beatport credentials for API access.
+    pub beatport: Option<BeatportConfig>,
 }
 
 struct MusicFileTypes(Vec<String>);
@@ -61,6 +70,7 @@ impl Default for Config {
             import_path: PathBuf::from_str("./new-music").unwrap(),
             data_path: PathBuf::from_str("./data").unwrap(),
             music_file_types: Default::default(),
+            beatport: None,
         }
     }
 }
@@ -130,6 +140,7 @@ mod tests {
                     import_path: PathBuf::from_str("/home/evan/new-music").unwrap(),
                     data_path: PathBuf::from_str("/home/evan/tunes-importer-data").unwrap(),
                     music_file_types: Default::default(),
+                    beatport: None,
                 }
             );
             Ok(())
