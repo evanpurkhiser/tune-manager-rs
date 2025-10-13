@@ -4,8 +4,10 @@ use std::{
     vec,
 };
 
+use chrono::{DateTime, Utc};
 use id3::Tag;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 
 use crate::{fields::CountField, tags::Id3TagId};
 
@@ -48,7 +50,15 @@ impl From<PathBuf> for TrackMetadaata {
     }
 }
 
-#[derive(Debug, sqlx::FromRow)]
+/// A TrackRevision represents a historic state of track tags
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TrackRevision {
+    /// Timestamp of the track revision
+    pub ts: DateTime<Utc>,
+    pub tags: TrackTags,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, sqlx::FromRow)]
 pub struct TrackTags {
     pub artist: Option<String>,
     pub title: Option<String>,
