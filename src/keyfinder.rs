@@ -59,10 +59,6 @@ pub fn detect_key(
     }
 }
 
-/// Convenience function to detect key using standard notation.
-pub fn detect_key_standard(input_path: impl AsRef<Path>) -> Result<Option<String>, KeyfinderError> {
-    detect_key(input_path, KeyNotation::Standard)
-}
 
 #[cfg(test)]
 mod tests {
@@ -70,11 +66,11 @@ mod tests {
 
     use crate::tests::fixture_path;
 
-    use super::{KeyNotation, detect_key, detect_key_standard};
+    use super::{KeyNotation, detect_key};
 
     #[test]
     fn test_detect_key_standard() -> Result<(), Box<dyn Error>> {
-        let key = detect_key_standard(fixture_path("example.wav"))?;
+        let key = detect_key(fixture_path("example.wav"), KeyNotation::Standard)?;
         assert!(key.is_some());
         assert_eq!(key.unwrap(), "C");
         Ok(())
@@ -98,7 +94,7 @@ mod tests {
 
     #[test]
     fn test_detect_key_aiff() -> Result<(), Box<dyn Error>> {
-        let key = detect_key_standard(fixture_path("example.aiff"))?;
+        let key = detect_key(fixture_path("example.aiff"), KeyNotation::Standard)?;
         assert!(key.is_some());
         assert_eq!(key.unwrap(), "C");
         Ok(())
@@ -106,7 +102,7 @@ mod tests {
 
     #[test]
     fn test_detect_key_bad_file() {
-        let result = detect_key_standard(fixture_path("beatport_track.json"));
+        let result = detect_key(fixture_path("beatport_track.json"), KeyNotation::Standard);
         assert!(matches!(result, Err(super::KeyfinderError::Keyfinder(_))));
     }
 }
