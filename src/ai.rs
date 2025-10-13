@@ -85,13 +85,12 @@ TRACK & DISC FIELDS
 - If one file clearly belongs to a multi-track release, treat it as part of that release (keep album, disc, track).
 
 ALBUM / PUBLISHER / CATALOG / YEAR / GENRE
-- `album` is null only for genuine singles.
+- `album` MUST be null only for singles (track = 1/1).
 - `publisher`, `catalog_id`, and `year` may be null if unknown.
 - Use a single free-text genre. Prefer “Hardcore”, “Trance”, or “Hard Trance” when relevant, but choose what best fits.
 - Tracks from the same release share the same `publisher` and `catalog_id` when available.
 
 CONSISTENCY
-- Always normalize spacing, capitalization, and punctuation (`Ft.` with period, consistent parentheses).
 - Choose the most standard professional DJ metadata convention when uncertain.
 - Never invent or assume — only include information clearly indicated or industry-standard.
 "#;
