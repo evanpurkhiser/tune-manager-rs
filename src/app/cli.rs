@@ -60,6 +60,12 @@ pub enum Commands {
         #[clap(subcommand)]
         command: DebugCommands,
     },
+
+    #[clap(about = "Process a single file through the processing pipeline")]
+    Process {
+        #[clap(help = "Path to audio file to process", value_hint = ValueHint::FilePath)]
+        file: PathBuf,
+    },
 }
 
 #[derive(Subcommand, Debug)]

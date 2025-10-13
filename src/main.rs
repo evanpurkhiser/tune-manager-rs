@@ -9,6 +9,7 @@ mod file_utils;
 mod keyfinder;
 mod logging;
 mod media_hash;
+mod processing;
 mod tags;
 mod track;
 
