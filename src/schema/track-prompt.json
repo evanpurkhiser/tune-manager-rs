@@ -45,11 +45,11 @@
       "type": ["string", "null"],
       "description": "Primary genre as free text. Common values: Hardcore, Trance, Hard Trance."
     },
-    "DiscNumber": {
+    "DiscPair": {
       "type": ["string", "null"],
       "description": "Disc field formatted as `d/a` where `d` is the disc number and `a` is total discs. Omit for true singles. For a single-disc multi-track release, use `1/1`."
     },
-    "TrackNumber": {
+    "TrackPair": {
       "type": ["string", "null"],
       "description": "Track field formatted as `t/a` where `t` is track number and `a` is total tracks in the disc/release. Use null for singles. `1/1` is NEVER valid."
     },
@@ -77,8 +77,8 @@
         "catalog_id": { "$ref": "#/$defs/CatalogId" },
         "year": { "$ref": "#/$defs/Year" },
         "genre": { "$ref": "#/$defs/Genre" },
-        "disc": { "$ref": "#/$defs/DiscNumber" },
-        "track": { "$ref": "#/$defs/TrackNumber" }
+        "disc": { "$ref": "#/$defs/DiscPair" },
+        "track": { "$ref": "#/$defs/TrackPair" }
       },
       "description": "Single track entry following the formatting rules."
     }
