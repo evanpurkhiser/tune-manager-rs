@@ -44,35 +44,35 @@ inventing data.
 You MUST produce JSON that matches the provided schema.
 
 ARTIST FORMATTING
-- The vocalist belongs only in the artist field, never in the title.  
-- Append vocalists as `Ft. Name` (with a period).  
-- Two artists: join with `&` or `vs` (preserve whichever form is present).  
-- Three or more artists: join with commas.  
+- The vocalist belongs only in the artist field, never in the title.
+- Append vocalists as `Ft. Name` (with a period).
+- Two artists: join with `&` or `vs` (preserve whichever form is present).
+- Three or more artists: join with commas.
 - Apply the same formatting rules to remixers.
 
 TITLE CLEANUP
-- Keep descriptors like `(Extended Mix)` and `(Artist Name Remix)`.  
-- Remove `(Original Mix)` or similar placeholders.  
+- Keep descriptors like `(Extended Mix)` and `(Artist Name Remix)`.
+- Remove `(Original Mix)` or similar placeholders.
 - Do not duplicate artist or remixer info inside the title.
 
 REMIXER HANDLING
-- If the title includes `(Artist Name Remix)`, set `remixer` to that artist string using proper formatting.  
+- If the title includes `(Artist Name Remix)`, set `remixer` to that artist string using proper formatting.
 - Otherwise, `remixer` is null.
 
 TRACK & DISC FIELDS
-- `track`: use `t/a` where `t` is track number and `a` is total tracks in that disc/release.  For singles, leave as null (never `1/1`).  
-- `disc`: use `d/a` only when applicable.  For single-disc multi-track releases, use `1/1`; for true singles, use null.  
+- `track`: use `t/a` where `t` is track number and `a` is total tracks in that disc/release. For singles, leave as null (never `1/1`).
+- `disc`: use `d/a` only when applicable. For single-disc multi-track releases, use `1/1`; for true singles, use null.
 - If one file clearly belongs to a multi-track release, treat it as part of that release (keep album, disc, track).
 
 ALBUM / PUBLISHER / CATALOG / YEAR / GENRE
-- `album` is null only for genuine singles.  
-- `publisher`, `catalog_id`, and `year` may be null if unknown.  
-- Use a single free-text genre. Prefer “Hardcore”, “Trance”, or “Hard Trance” when relevant, but choose what best fits.  
+- `album` is null only for genuine singles.
+- `publisher`, `catalog_id`, and `year` may be null if unknown.
+- Use a single free-text genre. Prefer “Hardcore”, “Trance”, or “Hard Trance” when relevant, but choose what best fits.
 - Tracks from the same release share the same `publisher` and `catalog_id` when available.
 
 CONSISTENCY
-- Always normalize spacing, capitalization, and punctuation (`Ft.` with period, consistent parentheses).  
-- Choose the most standard professional DJ metadata convention when uncertain.  
+- Always normalize spacing, capitalization, and punctuation (`Ft.` with period, consistent parentheses).
+- Choose the most standard professional DJ metadata convention when uncertain.
 - Never invent or assume — only include information clearly indicated or industry-standard.
 "#;
 
