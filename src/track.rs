@@ -68,18 +68,18 @@ impl From<Tag> for TrackTags {
     fn from(tag: Tag) -> Self {
         type T = Id3TagId;
         Self {
-            artist: T::Artist.from(&tag),
-            title: T::Title.from(&tag),
-            album: T::Album.from(&tag),
-            remixer: T::Remixer.from(&tag),
-            publisher: T::Publisher.from(&tag),
-            catalog_id: T::CatlogId.from(&tag),
-            year: T::Year.from(&tag),
-            genre: T::Genre.from(&tag),
-            key: T::Key.from(&tag),
-            bpm: T::Bpm.from(&tag),
-            disc: T::Disc.from(&tag).map(|v| v.parse().unwrap()),
-            track: T::Track.from(&tag).map(|v| v.parse().unwrap()),
+            artist: T::Artist.read(&tag),
+            title: T::Title.read(&tag),
+            album: T::Album.read(&tag),
+            remixer: T::Remixer.read(&tag),
+            publisher: T::Publisher.read(&tag),
+            catalog_id: T::CatlogId.read(&tag),
+            year: T::Year.read(&tag),
+            genre: T::Genre.read(&tag),
+            key: T::Key.read(&tag),
+            bpm: T::Bpm.read(&tag),
+            disc: T::Disc.read(&tag).map(|v| v.parse().unwrap()),
+            track: T::Track.read(&tag).map(|v| v.parse().unwrap()),
         }
     }
 }

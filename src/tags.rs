@@ -19,7 +19,7 @@ pub enum Id3TagId {
 
 impl Id3TagId {
     /// Get the string value of the specified Id3TagId.
-    pub fn from(&self, tag: &Tag) -> Option<String> {
+    pub fn read(&self, tag: &Tag) -> Option<String> {
         tag.get(self.as_str())
             .and_then(|f| match self {
                 Id3TagId::CatlogId => f
