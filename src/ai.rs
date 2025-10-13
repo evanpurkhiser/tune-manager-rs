@@ -130,18 +130,20 @@ struct TrackCsv {
 
 impl From<&Track> for TrackCsv {
     fn from(track: &Track) -> Self {
+        let tags = &track.tags;
+
         Self {
             file_path: track.metadata.file_path.to_string_lossy().to_string(),
-            artist: track.tags.artist.clone(),
-            title: track.tags.title.clone(),
-            album: track.tags.album.clone(),
-            remixer: track.tags.remixer.clone(),
-            publisher: track.tags.publisher.clone(),
-            catalog_id: track.tags.catalog_id.clone(),
-            year: track.tags.year.clone(),
-            genre: track.tags.genre.clone(),
-            disc: track.tags.disc.as_ref().map(|d| d.to_string()),
-            track: track.tags.track.as_ref().map(|t| t.to_string()),
+            artist: tags.artist.clone(),
+            title: tags.title.clone(),
+            album: tags.album.clone(),
+            remixer: tags.remixer.clone(),
+            publisher: tags.publisher.clone(),
+            catalog_id: tags.catalog_id.clone(),
+            year: tags.year.clone(),
+            genre: tags.genre.clone(),
+            disc: tags.disc.as_ref().map(|d| d.to_string()),
+            track: tags.track.as_ref().map(|t| t.to_string()),
         }
     }
 }
