@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{borrow::Borrow, collections::HashSet};
 
 use id3::{Tag, TagLike, frame};
 use serde::{Deserialize, Serialize};
@@ -68,10 +68,18 @@ pub fn track_revisions(tag: &Tag) -> Vec<TrackRevision> {
         .unwrap_or_default()
 }
 
+/// Gets the most recent track revision from the tag's GEOB frame
+pub fn get_last_revision(tag: &Tag) -> Option<TrackRevision> {
+    track_revisions(tag).last().cloned()
+}
+
 /// Appends a track revision to the tag's GEOB frame
-pub fn append_track_revision(tag: &mut Tag, revision: TrackRevision) -> Result<(), id3::Error> {
+pub fn append_track_revision(
+    tag: &mut Tag,
+    revision: impl Borrow<TrackRevision>,
+) -> Result<(), id3::Error> {
     let mut revisions = track_revisions(tag);
-    revisions.push(revision);
+    revisions.push(revision.borrow().clone());
 
     let history = TrackHistory { revisions };
 
@@ -100,9 +108,8 @@ pub fn append_track_revision(tag: &mut Tag, revision: TrackRevision) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use id3::Tag;
     use crate::track::TrackTags;
-    use chrono::Utc;
+    use id3::Tag;
 
     #[test]
     fn test_empty_tag_has_no_completed_stages() {
@@ -154,10 +161,7 @@ mod tests {
             ..Default::default()
         };
 
-        let revision = TrackRevision {
-            ts: Utc::now(),
-            tags: tags.clone(),
-        };
+        let revision = TrackRevision::new(tags.clone());
 
         // Append first revision
         append_track_revision(&mut tag, revision).unwrap();
@@ -186,15 +190,8 @@ mod tests {
             ..Default::default()
         };
 
-        let revision1 = TrackRevision {
-            ts: Utc::now(),
-            tags: tags1,
-        };
-
-        let revision2 = TrackRevision {
-            ts: Utc::now(),
-            tags: tags2,
-        };
+        let revision1 = TrackRevision::new(tags1);
+        let revision2 = TrackRevision::new(tags2);
 
         // Append revisions
         append_track_revision(&mut tag, revision1).unwrap();
