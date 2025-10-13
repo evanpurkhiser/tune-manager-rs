@@ -42,7 +42,7 @@
       "description": "Release year, or null if unknown."
     },
     "Genre": {
-      "type": "string",
+      "type": ["string", "null"],
       "description": "Primary genre as free text. Common values: Hardcore, Trance, Hard Trance."
     },
     "DiscNumber": {
