@@ -52,13 +52,17 @@ pub fn detect_key(
         ));
     }
     let key_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if key_str.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(key_str))
-    }
-}
 
+    if key_str.is_empty() {
+        return Ok(None);
+    };
+
+    let formatted_key = match notation {
+        KeyNotation::Camelot => format!("{:0>3}", key_str),
+        _ => key_str,
+    };
+    Ok(Some(formatted_key))
+}
 
 #[cfg(test)]
 mod tests {
@@ -88,7 +92,7 @@ mod tests {
     fn test_detect_key_camelot() -> Result<(), Box<dyn Error>> {
         let key = detect_key(fixture_path("example.wav"), KeyNotation::Camelot)?;
         assert!(key.is_some());
-        assert_eq!(key.unwrap(), "8B");
+        assert_eq!(key.unwrap(), "08B");
         Ok(())
     }
 
