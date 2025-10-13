@@ -1,9 +1,9 @@
 use std::{io, path::PathBuf};
 
-use id3::{Tag, TagLike};
+use id3::Tag;
 use tracing::{error, info};
 
-use crate::beatport::{BeatportCredentials, BeatportSource, try_extract_track_id};
+use crate::beatport::{BeatportCredentials, BeatportSource, try_extract_track_id, try_extract_url};
 
 pub fn run(username: String, password: String, file_path: Option<PathBuf>) -> io::Result<()> {
     tokio::runtime::Builder::new_multi_thread()
@@ -42,7 +42,7 @@ async fn run_async(
     })?;
 
     // Extract Beatport URL from WOAF frame
-    let beatport_url = extract_url(&tag).ok_or_else(|| {
+    let beatport_url = try_extract_url(&tag).ok_or_else(|| {
         error!("No Beatport URL found in WOAF frame");
         io::Error::new(io::ErrorKind::NotFound, "No Beatport URL found")
     })?;
@@ -73,11 +73,4 @@ async fn run_async(
     println!("{:#?}", track_info);
 
     Ok(())
-}
-
-fn extract_url(tag: &Tag) -> Option<String> {
-    tag.get("WOAF").and_then(|frame| match frame.content() {
-        id3::Content::Link(url) => Some(url.to_string()),
-        _ => None,
-    })
 }

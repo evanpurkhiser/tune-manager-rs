@@ -1,16 +1,12 @@
 use std::{collections::HashMap, sync::LazyLock};
 
+use id3::{Tag, TagLike};
 use regex::Regex;
 use serde_json::{Value, json};
 use thiserror::Error;
 
 static TRACK_PATH: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^/track/[^/]+/(?<track_id>\d+)$").unwrap());
-
-// OAuth constants extracted from Beatport API docs example JavaScript app
-// since public API application registration is not available
-static OAUTH_CLIENT_ID: &str = "0GIvkCltVIuPkkwSJHp6NDb3s0potTjLBQr388Dd";
-static OAUTH_REDIRECT_PATH: &str = "/v4/auth/o/post-message/";
 
 /// Extracts the track ID from a Beatport URL. Invalid beatport URLS will return None.
 pub fn try_extract_track_id(maybe_beatport_url: &str) -> Option<u32> {
@@ -32,6 +28,14 @@ pub fn try_extract_track_id(maybe_beatport_url: &str) -> Option<u32> {
                 .parse()
                 .ok()
         })
+}
+
+/// Extracts the beatport URL from a Tag if present in the WOAF frame.
+pub fn try_extract_url(tag: &Tag) -> Option<String> {
+    tag.get("WOAF")
+        .and_then(|frame| frame.content().link())
+        .map(str::to_string)
+        .filter(|url| url.contains("beatport.com"))
 }
 
 #[derive(Error, Debug)]
@@ -106,6 +110,11 @@ where
         }
     }
 }
+
+// OAuth constants extracted from Beatport API docs example JavaScript app
+// since public API application registration is not available
+static OAUTH_CLIENT_ID: &str = "0GIvkCltVIuPkkwSJHp6NDb3s0potTjLBQr388Dd";
+static OAUTH_REDIRECT_PATH: &str = "/v4/auth/o/post-message/";
 
 impl<AuthState> BeatportSource<AuthState> {
     /// Authenticate with Beatport using standard OAuth flow with username/password credentials.
@@ -287,7 +296,7 @@ mod tests {
 
     use super::{
         Authenticated, BeatportCredentials, BeatportSource, BeatportTrackInfo, OAUTH_CLIENT_ID,
-        try_extract_track_id,
+        try_extract_track_id, try_extract_url,
     };
     use crate::tests::read_fixture;
 
@@ -308,6 +317,36 @@ mod tests {
             "https://www.beatport.com/track/move-feat-malachiii/19119572",
             Some(19119572),
         );
+    }
+
+    #[test]
+    fn test_extract_url() {
+        use id3::{Content, Frame, Tag, TagLike};
+
+        let beatport_url = "https://www.beatport.com/track/move-feat-malachiii/19119572";
+
+        // Create a tag with proper WOAF frame containing a Beatport URL
+        {
+            let mut tag = Tag::new();
+            tag.add_frame(Frame::with_content(
+                "WOAF",
+                Content::Link(beatport_url.to_string()),
+            ));
+            assert_eq!(try_extract_url(&tag), Some(beatport_url.to_string()));
+        };
+
+        // Non-Beatport URL should return None
+        {
+            let mut tag = Tag::new();
+            tag.add_frame(Frame::with_content(
+                "WOAF",
+                Content::Link("https://www.spotify.com/track/12345".to_string()),
+            ));
+            assert_eq!(try_extract_url(&tag), None);
+        };
+
+        // Empty tag should return None
+        assert_eq!(try_extract_url(&Tag::new()), None);
     }
 
     #[tokio::test]
