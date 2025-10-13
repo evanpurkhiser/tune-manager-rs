@@ -21,6 +21,8 @@ mod schema_types {
     typify::import_types!("src/schema/track-prompt.json");
 }
 
+pub type TrackResponse = schema_types::Track;
+
 impl schema_types::Track {
     /// Updates the provided TrackTags with information from AI processing
     pub fn update_track_tags(&self, tags: &mut TrackTags) {

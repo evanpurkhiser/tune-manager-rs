@@ -16,5 +16,8 @@ pub enum ProcessingStage {
 
     /// Extracts Beatport URL from WOAF tags and fetches track metadata from Beatport API
     Beatport,
+
+    /// Uses AI to clean up and normalize track metadata
+    Ai,
 }
 

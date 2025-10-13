@@ -3,16 +3,23 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use id3::Tag;
 use tracing::info;
 
 use crate::{
+    ai,
     app::config::{BeatportConfig, Config},
     beatport::{self, BeatportCredentials, BeatportSource, BeatportTrackInfo, try_extract_url},
     keyfinder,
+    processing::{
+        ProcessingStage,
+        state::{append_track_revision, completed_stages, get_last_revision, mark_stage_complete},
+    },
+    track::{Track, TrackRevision, TrackTags},
 };
-use id3::Tag;
 
 use super::stages;
+use stages::prepare_media::PrepareMediaResult;
 
 pub async fn process_file(file_path: PathBuf, config: &Config) -> io::Result<()> {
     info!("Starting processing pipeline for: {}", file_path.display());
@@ -22,47 +29,93 @@ pub async fn process_file(file_path: PathBuf, config: &Config) -> io::Result<()>
     let prepare_result = run_prepare_media(&file_path).inspect_err(|e| {
         eprintln!("PrepareMedia failed: {}", e);
     })?;
-    info!("PrepareMedia completed successfully");
+
+    let mut tag = prepare_result.tag;
+    let complete = completed_stages(&tag);
+
+    if !complete.contains(&ProcessingStage::PrepareMedia) {
+        let revision = TrackRevision::new(TrackTags::from(&tag));
+        append_track_revision(&mut tag, &revision).unwrap();
+        mark_stage_complete(&mut tag, ProcessingStage::PrepareMedia).unwrap();
+
+        info!("PrepareMedia completed successfully");
+    } else {
+        info!("PrepareMedia post processing skipped");
+    }
 
     // Stage 2: Keyfinder
     info!("=== Stage 2: Keyfinder ===");
-    let keyfinder_result = run_keyfinder(&prepare_result.file_path).inspect_err(|e| {
-        eprintln!("Keyfinder failed: {}", e);
-    })?;
-    info!("Keyfinder completed successfully");
-    println!("Keyfinder Result: {:#?}", keyfinder_result);
+    if !complete.contains(&ProcessingStage::Keyfinder) {
+        let keyfinder_result = run_keyfinder(&prepare_result.file_path).inspect_err(|e| {
+            eprintln!("Keyfinder failed: {}", e);
+        })?;
+
+        let mut revision = get_last_revision(&tag).expect("to have revisions").clone();
+        revision.tags.key = keyfinder_result.detected_key.clone();
+        append_track_revision(&mut tag, &revision).unwrap();
+        mark_stage_complete(&mut tag, ProcessingStage::Keyfinder).unwrap();
+
+        info!(
+            "Keyfinder completed: {:?}",
+            keyfinder_result.detected_key.clone()
+        );
+    } else {
+        info!("KeyFinder stage skipped");
+    }
 
     // Stage 3: Beatport
     info!("=== Stage 3: Beatport ===");
-    let beatport_result = run_beatport(&prepare_result.tag, config.beatport.as_ref())
-        .await
-        .inspect_err(|e| {
-            eprintln!("Beatport failed: {}", e);
-        })?;
-    info!("Beatport completed successfully");
-    println!("Beatport Result: {:#?}", beatport_result);
+    if !complete.contains(&ProcessingStage::Beatport) {
+        let beatport_result = run_beatport(&tag, config.beatport.as_ref())
+            .await
+            .inspect_err(|e| {
+                eprintln!("Beatport failed: {}", e);
+            })?;
+
+        let mut revision = get_last_revision(&tag).expect("to have revisions").clone();
+        if let Some(ref track_info) = beatport_result.track_info {
+            track_info.update_track_tags(&mut revision.tags);
+        }
+        append_track_revision(&mut tag, &revision).unwrap();
+        mark_stage_complete(&mut tag, ProcessingStage::Beatport).unwrap();
+
+        info!("Beatport completed successfully");
+        println!("Beatport Result: {:#?}", beatport_result);
+    } else {
+        info!("Beatport stage skipped");
+    }
+
+    // Stage 4: AI
+    info!("=== Stage 4: AI ===");
+    if !complete.contains(&ProcessingStage::Ai) {
+        let revision = get_last_revision(&tag).expect("to have revisions").clone();
+
+        let ai_result = run_ai(&revision.tags, &prepare_result.file_path)
+            .await
+            .inspect_err(|e| {
+                eprintln!("AI failed: {}", e);
+            })?;
+
+        if let Some(ref track_response) = ai_result.response {
+            let mut revision = get_last_revision(&tag).expect("to have revisions").clone();
+            track_response.update_track_tags(&mut revision.tags);
+            append_track_revision(&mut tag, &revision).unwrap();
+            mark_stage_complete(&mut tag, ProcessingStage::Ai).unwrap();
+            info!("AI completed successfully");
+        }
+    } else {
+        info!("AI stage skipped");
+    }
 
     info!(
         "Processing pipeline completed for: {}",
         prepare_result.file_path.display()
     );
+
+    let revision = get_last_revision(&tag).expect("to have revisions").clone();
+    println!("{}", serde_json::to_string_pretty(&revision).unwrap());
+
     Ok(())
-}
-
-// Use the result struct from the stages module
-use stages::prepare_media::PrepareMediaResult;
-
-#[derive(Debug)]
-struct KeyfinderResult {
-    detected_key: Option<String>,
-    notation: String,
-}
-
-#[derive(Debug)]
-struct BeatportResult {
-    url_found: bool,
-    track_info: Option<BeatportTrackInfo>,
-    api_success: bool,
 }
 
 fn run_prepare_media(file_path: &Path) -> io::Result<PrepareMediaResult> {
@@ -75,22 +128,27 @@ fn run_prepare_media(file_path: &Path) -> io::Result<PrepareMediaResult> {
     }
 }
 
-fn run_keyfinder(file_path: &Path) -> io::Result<KeyfinderResult> {
-    info!("Running Keyfinder stage on: {}", file_path.display());
+#[derive(Debug)]
+struct KeyfinderResult {
+    detected_key: Option<String>,
+}
 
-    match keyfinder::detect_key(file_path, keyfinder::KeyNotation::Standard) {
-        Ok(key_result) => {
+fn run_keyfinder(file_path: &Path) -> io::Result<KeyfinderResult> {
+    match keyfinder::detect_key(file_path, keyfinder::KeyNotation::Camelot) {
+        Ok(detected_key) => {
             info!("Keyfinder detection completed");
-            Ok(KeyfinderResult {
-                detected_key: key_result,
-                notation: "Standard".to_string(),
-            })
+            Ok(KeyfinderResult { detected_key })
         }
         Err(e) => Err(io::Error::new(
             io::ErrorKind::Other,
             format!("Keyfinder failed: {}", e),
         )),
     }
+}
+
+#[derive(Debug)]
+struct BeatportResult {
+    track_info: Option<BeatportTrackInfo>,
 }
 
 async fn run_beatport(
@@ -102,11 +160,7 @@ async fn run_beatport(
     // Look for WOAF frame with Beatport URL
     let Some(url) = try_extract_url(tag) else {
         info!("No Beatport URL found in WOAF frame");
-        return Ok(BeatportResult {
-            url_found: false,
-            track_info: None,
-            api_success: false,
-        });
+        return Ok(BeatportResult { track_info: None });
     };
 
     info!("Found Beatport URL: {}", url);
@@ -114,11 +168,7 @@ async fn run_beatport(
     // Try to extract track ID
     let Some(track_id) = beatport::try_extract_track_id(&url) else {
         info!("Could not extract track ID from Beatport URL");
-        return Ok(BeatportResult {
-            url_found: false,
-            track_info: None,
-            api_success: false,
-        });
+        return Ok(BeatportResult { track_info: None });
     };
 
     info!("Extracted Beatport track ID: {}", track_id);
@@ -126,11 +176,7 @@ async fn run_beatport(
     // If we have beatport credentials, try to fetch track info
     let Some(config) = beatport_config else {
         info!("No Beatport credentials configured, skipping API call");
-        return Ok(BeatportResult {
-            url_found: true,
-            track_info: None,
-            api_success: false,
-        });
+        return Ok(BeatportResult { track_info: None });
     };
 
     info!("Authenticating with Beatport and fetching track info");
@@ -141,25 +187,49 @@ async fn run_beatport(
     };
 
     let Ok(authenticated_source) = BeatportSource::new().authenticate(credentials).await else {
-        return Ok(BeatportResult {
-            url_found: true,
-            track_info: None,
-            api_success: false,
-        });
+        return Ok(BeatportResult { track_info: None });
     };
 
     let Ok(track_info) = authenticated_source.fetch_track_info(track_id).await else {
-        return Ok(BeatportResult {
-            url_found: true,
-            track_info: None,
-            api_success: false,
-        });
+        return Ok(BeatportResult { track_info: None });
     };
 
     info!("Successfully fetched track info from Beatport API");
     Ok(BeatportResult {
-        url_found: true,
         track_info: Some(track_info),
-        api_success: true,
     })
+}
+
+#[derive(Debug)]
+struct AiResult {
+    response: Option<ai::TrackResponse>,
+}
+
+async fn run_ai(track_tags: &TrackTags, file_path: &Path) -> io::Result<AiResult> {
+    info!("Running AI stage");
+
+    // Create a Track from current state with actual file metadata
+    let track = Track {
+        metadata: file_path.to_path_buf().into(),
+        tags: track_tags.clone(),
+    };
+
+    // Use AI to process the track
+    let ai_client = async_openai::Client::new();
+    let Ok(response) = ai::process_tracks(ai_client, vec![track]).await else {
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            "AI processing failed".to_string(),
+        ));
+    };
+
+    if let Some(track_response) = response.tracks.first() {
+        info!("AI processing completed successfully");
+        Ok(AiResult {
+            response: Some(track_response.clone()),
+        })
+    } else {
+        info!("AI returned no track updates");
+        Ok(AiResult { response: None })
+    }
 }
