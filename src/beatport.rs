@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::LazyLock};
+use std::{borrow::Borrow, collections::HashMap, sync::LazyLock};
 
 use id3::{Tag, TagLike};
 use regex::Regex;
@@ -112,6 +112,7 @@ impl Authenticated {
 
 /// The username and password credentials required to authenticate with the beatport API to
 /// authorize the beatport client. These are the same username and password used to login.
+#[derive(Clone)]
 pub struct BeatportCredentials {
     pub username: String,
     pub password: String,
@@ -153,17 +154,18 @@ impl<AuthState> BeatportSource<AuthState> {
     /// Authenticate with Beatport using standard OAuth flow with username/password credentials.
     async fn get_token(
         &self,
-        credentials: BeatportCredentials,
+        credentials: impl Borrow<BeatportCredentials>,
     ) -> Result<String, BeatportApiError> {
         let redirect_uri = &format!("{}{}", self.base_url_apis, OAUTH_REDIRECT_PATH);
+        let creds = credentials.borrow();
 
         // Step 1: Login with username/password
         let login_response = self
             .client
             .post(format!("{}/v4/auth/login/", self.base_url_apis))
             .json(&json!({
-                "username": credentials.username,
-                "password": credentials.password
+                "username": creds.username,
+                "password": creds.password
             }))
             .send()
             .await?;
@@ -248,7 +250,7 @@ impl BeatportSource<Unauthenticated> {
     /// Authenticate the BeatportSource client given Beatport.com credentials.
     pub async fn authenticate(
         &self,
-        credentials: BeatportCredentials,
+        credentials: impl Borrow<BeatportCredentials>,
     ) -> Result<BeatportSource<Authenticated>, BeatportApiError> {
         let token = self.get_token(credentials).await?;
         Ok(BeatportSource {
@@ -267,7 +269,7 @@ impl BeatportSource<Authenticated> {
     /// Update the authentication token in this client.
     pub async fn reauthenticate(
         mut self,
-        credentials: BeatportCredentials,
+        credentials: impl Borrow<BeatportCredentials>,
     ) -> Result<Self, BeatportApiError> {
         self.auth_state.token = self.get_token(credentials).await?;
         Ok(self)
