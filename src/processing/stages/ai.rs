@@ -13,7 +13,7 @@ use crate::{
     processing::concurrent::{
         ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
     },
-    track::Track,
+    track::{Track, TrackRevision},
 };
 
 /// Maximum number of concurrent AI API requests allowed
@@ -84,4 +84,12 @@ async fn process_ai_input(
     Ok(AiResult {
         responses: response.tracks,
     })
+}
+
+pub fn produce_revision(last_revision: &TrackRevision, result: &AiResult) -> TrackRevision {
+    let mut revision = last_revision.clone();
+    if let Some(track_response) = result.responses.first() {
+        track_response.update_track_tags(&mut revision.tags);
+    }
+    TrackRevision::new(revision.tags)
 }

@@ -6,31 +6,26 @@ use crate::{
     app::config::Config,
     processing::{
         ProcessingStage,
-        stages::{
-            ai::{AiError, AiInput, new_ai_processor},
-            beatport::{BeatportError, BeatportInput, new_beatport_processor},
-            keyfinder::{KeyfinderInput, new_keyfinder_processor},
-            prepare_media::{PrepareMediaInput, new_prepare_media_processor},
-        },
+        stages::{ai, beatport, keyfinder, prepare_media},
         state::{append_track_revision, completed_stages, get_last_revision, mark_stage_complete},
     },
-    track::{Track, TrackRevision, TrackTags},
+    track::Track,
 };
 
 pub async fn process_file(input_path: PathBuf, config: &Config) -> io::Result<()> {
     info!("Starting processing pipeline for: {}", input_path.display());
 
     // Create processors
-    let prepare_media_processor = new_prepare_media_processor();
+    let prepare_media_processor = prepare_media::new_prepare_media_processor();
     let prepare_media_sender = prepare_media_processor.get_sender();
 
-    let keyfinder_processor = new_keyfinder_processor();
+    let keyfinder_processor = keyfinder::new_keyfinder_processor();
     let keyfinder_sender = keyfinder_processor.get_sender();
 
-    let beatport_processor = new_beatport_processor(config.beatport.as_ref());
+    let beatport_processor = beatport::new_beatport_processor(config.beatport.as_ref());
     let beatport_sender = beatport_processor.get_sender();
 
-    let ai_processor = new_ai_processor(config.ai.as_ref());
+    let ai_processor = ai::new_ai_processor(config.ai.as_ref());
     let ai_sender = ai_processor.get_sender();
 
     // Start processors in background
@@ -40,7 +35,7 @@ pub async fn process_file(input_path: PathBuf, config: &Config) -> io::Result<()
     tokio::spawn(ai_processor.start());
 
     info!("=== Stage 1: PrepareMedia ===");
-    let prepare_input = PrepareMediaInput {
+    let prepare_input = prepare_media::PrepareMediaInput {
         file_path: input_path.clone(),
     };
     let prepare_result = prepare_media_sender
@@ -50,23 +45,22 @@ pub async fn process_file(input_path: PathBuf, config: &Config) -> io::Result<()
         .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("PrepareMedia failed: {}", e)))?;
 
     let mut tag = prepare_result.tag;
-    let file_path = prepare_result.file_path;
-
+    let file_path = prepare_result.file_path.clone();
     let complete = completed_stages(&tag);
 
     if !complete.contains(&ProcessingStage::PrepareMedia) {
-        let revision = TrackRevision::new(TrackTags::from(&tag));
+        let revision = prepare_media::produce_revision(&tag);
         append_track_revision(&mut tag, &revision).unwrap();
         mark_stage_complete(&mut tag, ProcessingStage::PrepareMedia).unwrap();
 
         info!("PrepareMedia completed successfully");
     } else {
         info!("PrepareMedia post processing skipped");
-    }
+    };
 
     info!("=== Stage 2: Keyfinder ===");
     if !complete.contains(&ProcessingStage::Keyfinder) {
-        let keyfinder_input = KeyfinderInput {
+        let keyfinder_input = keyfinder::KeyfinderInput {
             file_path: file_path.clone(),
         };
         let keyfinder_result = keyfinder_sender
@@ -77,13 +71,15 @@ pub async fn process_file(input_path: PathBuf, config: &Config) -> io::Result<()
                 io::Error::new(io::ErrorKind::Other, format!("Keyfinder failed: {}", e))
             })?;
 
-        if let Some(detected_key) = keyfinder_result.detected_key {
-            let mut revision = get_last_revision(&tag).expect("to have revisions").clone();
-            revision.tags.key = Some(detected_key.clone());
-            append_track_revision(&mut tag, &revision).unwrap();
-            mark_stage_complete(&mut tag, ProcessingStage::Keyfinder).unwrap();
+        let last_revision = get_last_revision(&tag).expect("to have revisions");
+        let revision = keyfinder::produce_revision(&last_revision, &keyfinder_result);
+        append_track_revision(&mut tag, &revision).unwrap();
+        mark_stage_complete(&mut tag, ProcessingStage::Keyfinder).unwrap();
 
+        if let Some(ref detected_key) = keyfinder_result.detected_key {
             info!("Keyfinder completed: {:?}", detected_key);
+        } else {
+            info!("Keyfinder completed with no key detected");
         }
     } else {
         info!("KeyFinder stage skipped");
@@ -91,24 +87,19 @@ pub async fn process_file(input_path: PathBuf, config: &Config) -> io::Result<()
 
     info!("=== Stage 3: Beatport ===");
     if !complete.contains(&ProcessingStage::Beatport) {
-        let beatport_input = BeatportInput { tag: tag.clone() };
+        let beatport_input = beatport::BeatportInput { tag: tag.clone() };
         match beatport_sender.send(beatport_input).result().await {
             Ok(beatport_result) => {
-                let mut revision = get_last_revision(&tag).expect("to have revisions").clone();
-                if let Some(ref track_info) = beatport_result.track_info {
-                    track_info.update_track_tags(&mut revision.tags);
-                }
+                let last_revision = get_last_revision(&tag).expect("to have revisions");
+                let revision = beatport::produce_revision(&last_revision, &beatport_result);
                 append_track_revision(&mut tag, &revision).unwrap();
                 mark_stage_complete(&mut tag, ProcessingStage::Beatport).unwrap();
 
                 info!("Beatport completed successfully");
                 println!("Beatport Result: {:#?}", beatport_result);
             }
-            Err(BeatportError::NotConfigured) => {
+            Err(beatport::BeatportError::NotConfigured) => {
                 info!("No Beatport credentials configured, skipping stage");
-                // Continue without error - just mark stage complete without updating tags
-                let revision = get_last_revision(&tag).expect("to have revisions").clone();
-                append_track_revision(&mut tag, &revision).unwrap();
                 mark_stage_complete(&mut tag, ProcessingStage::Beatport).unwrap();
             }
             Err(e) => {
@@ -131,26 +122,24 @@ pub async fn process_file(input_path: PathBuf, config: &Config) -> io::Result<()
             tags: revision.tags.clone(),
         };
 
-        let ai_input = AiInput {
+        let ai_input = ai::AiInput {
             tracks: vec![track],
         };
         match ai_sender.send(ai_input).result().await {
             Ok(ai_result) => {
-                if let Some(track_response) = ai_result.responses.first() {
-                    let mut revision = get_last_revision(&tag).expect("to have revisions").clone();
-                    track_response.update_track_tags(&mut revision.tags);
-                    append_track_revision(&mut tag, &revision).unwrap();
-                    mark_stage_complete(&mut tag, ProcessingStage::Ai).unwrap();
-                    info!("AI completed successfully");
-                } else {
-                    // Mark stage complete even if no AI response
-                    mark_stage_complete(&mut tag, ProcessingStage::Ai).unwrap();
+                let last_revision = get_last_revision(&tag).expect("to have revisions");
+                let revision = ai::produce_revision(&last_revision, &ai_result);
+                append_track_revision(&mut tag, &revision).unwrap();
+                mark_stage_complete(&mut tag, ProcessingStage::Ai).unwrap();
+
+                if ai_result.responses.is_empty() {
                     info!("AI processing completed with no response");
+                } else {
+                    info!("AI completed successfully");
                 }
             }
-            Err(AiError::NotConfigured) => {
+            Err(ai::AiError::NotConfigured) => {
                 info!("OpenAI not configured, skipping AI stage");
-                // Continue without error - just mark stage complete without updating tags
                 mark_stage_complete(&mut tag, ProcessingStage::Ai).unwrap();
             }
             Err(e) => {

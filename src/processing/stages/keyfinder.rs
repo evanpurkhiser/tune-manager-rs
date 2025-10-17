@@ -5,6 +5,7 @@ use crate::{
     processing::concurrent::{
         ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
     },
+    track::TrackRevision,
 };
 
 /// Maximum number of concurrent keyfinder processes allowed
@@ -46,4 +47,12 @@ pub fn new_keyfinder_processor() -> KeyfinderProcessor {
             Box::pin(async move { tokio::task::spawn_blocking(executor).await.unwrap() })
         },
     )
+}
+
+pub fn produce_revision(last_revision: &TrackRevision, result: &KeyfinderResult) -> TrackRevision {
+    let mut revision = last_revision.clone();
+    if let Some(ref key) = result.detected_key {
+        revision.tags.key = Some(key.clone());
+    }
+    TrackRevision::new(revision.tags)
 }

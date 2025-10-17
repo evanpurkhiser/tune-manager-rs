@@ -14,6 +14,7 @@ use crate::{
     processing::concurrent::{
         ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
     },
+    track::TrackRevision,
 };
 
 /// Maximum number of concurrent beatport API requests allowed
@@ -122,4 +123,12 @@ async fn process_beatport_input(
     Ok(BeatportResult {
         track_info: Some(track_info),
     })
+}
+
+pub fn produce_revision(last_revision: &TrackRevision, result: &BeatportResult) -> TrackRevision {
+    let mut revision = last_revision.clone();
+    if let Some(ref track_info) = result.track_info {
+        track_info.update_track_tags(&mut revision.tags);
+    }
+    TrackRevision::new(revision.tags)
 }

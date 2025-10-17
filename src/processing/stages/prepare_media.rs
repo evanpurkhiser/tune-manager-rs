@@ -6,7 +6,10 @@ use thiserror::Error;
 use crate::processing::concurrent::{
     ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
 };
-use crate::{convert, media_hash};
+use crate::{
+    convert, media_hash,
+    track::{TrackRevision, TrackTags},
+};
 
 const MEDIA_HASH_OWNER: &str = "tune-manager-rs";
 const PREPARE_MEDIA_CONCURRENCY_LIMIT: usize = 12;
@@ -160,4 +163,8 @@ pub fn new_prepare_media_processor() -> PrepareMediaProcessor {
             })
         },
     )
+}
+
+pub fn produce_revision(tag: &Tag) -> TrackRevision {
+    TrackRevision::new(TrackTags::from(tag))
 }
