@@ -41,7 +41,7 @@ async fn run_async(path: PathBuf) {
     let client = Client::new();
 
     info!("Processing {} tracks with AI...", tracks.len());
-    match ai::process_tracks(client, tracks).await {
+    match ai::process_tracks(&client, tracks).await {
         Ok(result) => {
             info!("AI processing successful!");
             info!("{:#?}", result);

@@ -162,7 +162,7 @@ fn tracks_to_csv(tracks: &[Track]) -> Result<String, AiError> {
 }
 
 pub async fn process_tracks(
-    client: Client<OpenAIConfig>,
+    client: &Client<OpenAIConfig>,
     tracks: Vec<Track>,
 ) -> Result<schema_types::PromptResponse, AiError> {
     let csv_data = tracks_to_csv(&tracks)?;
