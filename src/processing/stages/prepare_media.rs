@@ -150,11 +150,14 @@ impl Default for PrepareMediaError {
 }
 
 pub fn new_prepare_media_processor() -> PrepareMediaProcessor {
-    concurrent_processor_with_limit(Some(PREPARE_MEDIA_CONCURRENCY_LIMIT), |input: PrepareMediaInput| {
-        Box::pin(async move {
-            tokio::task::spawn_blocking(move || run(&input.file_path))
-                .await
-                .unwrap()
-        })
-    })
+    concurrent_processor_with_limit(
+        Some(PREPARE_MEDIA_CONCURRENCY_LIMIT),
+        |input: PrepareMediaInput| {
+            Box::pin(async move {
+                tokio::task::spawn_blocking(move || run(&input.file_path))
+                    .await
+                    .unwrap()
+            })
+        },
+    )
 }
