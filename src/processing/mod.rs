@@ -1,9 +1,11 @@
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 
-pub mod state;
+
+pub mod concurrent;
 pub mod runner;
 pub mod stages;
+pub mod state;
 
 /// Represents the different stages of the processing pipeline
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Display, EnumString, Serialize, Deserialize)]

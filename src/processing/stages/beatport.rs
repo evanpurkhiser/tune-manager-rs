@@ -1,59 +1,124 @@
-use std::io;
+use std::{io, sync::Arc};
 
 use id3::Tag;
-use tracing::info;
+use thiserror::Error;
+use tokio::sync::OnceCell;
+use tracing::debug;
 
 use crate::{
     app::config::BeatportConfig,
-    beatport::{self, BeatportCredentials, BeatportSource, BeatportTrackInfo, try_extract_url},
+    beatport::{
+        self, Authenticated, BeatportApiError, BeatportCredentials, BeatportSource,
+        BeatportTrackInfo, try_extract_url,
+    },
+    processing::concurrent::{
+        ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
+    },
 };
+
+/// Maximum number of concurrent beatport API requests allowed
+const BEATPORT_CONCURRENCY_LIMIT: usize = 12;
+
+#[derive(Error, Debug)]
+pub enum BeatportError {
+    #[error("No Beatport URL found in tag")]
+    NoUrl,
+
+    #[error("Invalid Beatport URL format")]
+    InvalidUrl,
+
+    #[error("Beatport not configured")]
+    NotConfigured,
+
+    #[error("Beatport API error")]
+    Api(#[from] BeatportApiError),
+
+    #[error("IO error: {0}")]
+    Io(#[from] io::Error),
+}
+
+#[derive(Debug)]
+pub struct BeatportInput {
+    pub tag: Tag,
+}
 
 #[derive(Debug)]
 pub struct BeatportResult {
     pub track_info: Option<BeatportTrackInfo>,
 }
 
-pub async fn run(
-    tag: &Tag,
-    beatport_config: Option<&BeatportConfig>,
-) -> io::Result<BeatportResult> {
-    let Some(url) = try_extract_url(tag) else {
-        info!("No Beatport URL found in WOAF frame");
+type BeatportFuture = std::pin::Pin<
+    Box<dyn std::future::Future<Output = Result<BeatportResult, BeatportError>> + Send>,
+>;
+type BeatportProcessFn = Box<dyn Fn(BeatportInput) -> BeatportFuture + Send + Sync>;
+
+pub type BeatportProcessor = ConcurrentProcessor<
+    BeatportInput,
+    BeatportResult,
+    BeatportError,
+    BeatportProcessFn,
+    BeatportFuture,
+>;
+pub type BeatportSender = ConcurrentSender<BeatportInput, BeatportResult, BeatportError>;
+pub type BeatportSentItem = SentItem<BeatportResult, BeatportError>;
+
+pub fn new_beatport_processor(beatport_config: Option<&BeatportConfig>) -> BeatportProcessor {
+    let credentials = beatport_config.map(|config| {
+        Arc::new(BeatportCredentials {
+            username: config.username.clone(),
+            password: config.password.clone(),
+        })
+    });
+
+    let authenticated_client = Arc::new(OnceCell::<BeatportSource<Authenticated>>::new());
+
+    concurrent_processor_with_limit(
+        Some(BEATPORT_CONCURRENCY_LIMIT),
+        Box::new(move |input: BeatportInput| {
+            let client_cell = authenticated_client.clone();
+            let creds = credentials.clone();
+            Box::pin(async move { process_beatport_input(input, client_cell, creds).await })
+        }),
+    )
+}
+
+async fn process_beatport_input(
+    input: BeatportInput,
+    client_cell: Arc<OnceCell<BeatportSource<Authenticated>>>,
+    credentials: Option<Arc<BeatportCredentials>>,
+) -> Result<BeatportResult, BeatportError> {
+    let Some(credentials) = credentials else {
+        return Err(BeatportError::NotConfigured);
+    };
+
+    let Some(url) = try_extract_url(&input.tag) else {
         return Ok(BeatportResult { track_info: None });
     };
 
-    info!("Found Beatport URL: {}", url);
+    debug!("Found Beatport URL: {}", url);
 
-    // Try to extract track ID
     let Some(track_id) = beatport::try_extract_track_id(&url) else {
-        info!("Could not extract track ID from Beatport URL");
+        debug!("Could not extract track ID from Beatport URL");
         return Ok(BeatportResult { track_info: None });
     };
 
-    info!("Extracted Beatport track ID: {}", track_id);
+    debug!("Extracted Beatport track ID: {}", track_id);
 
-    // If we have beatport credentials, try to fetch track info
-    let Some(config) = beatport_config else {
-        info!("No Beatport credentials configured, skipping API call");
-        return Ok(BeatportResult { track_info: None });
-    };
+    let authenticated_source = client_cell
+        .get_or_try_init(move || async move {
+            debug!("Authenticating with Beatport");
+            BeatportSource::new()
+                .authenticate(credentials.as_ref())
+                .await
+        })
+        .await
+        .map_err(BeatportError::Api)?;
 
-    info!("Authenticating with Beatport and fetching track info");
+    let track_info = authenticated_source
+        .fetch_track_info(track_id)
+        .await
+        .map_err(BeatportError::Api)?;
 
-    let credentials = BeatportCredentials {
-        username: config.username.clone(),
-        password: config.password.clone(),
-    };
-
-    let Ok(authenticated_source) = BeatportSource::new().authenticate(credentials).await else {
-        return Ok(BeatportResult { track_info: None });
-    };
-
-    let Ok(track_info) = authenticated_source.fetch_track_info(track_id).await else {
-        return Ok(BeatportResult { track_info: None });
-    };
-
-    info!("Successfully fetched track info from Beatport API");
     Ok(BeatportResult {
         track_info: Some(track_info),
     })
