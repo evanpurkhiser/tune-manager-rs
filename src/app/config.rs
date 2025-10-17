@@ -9,10 +9,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::{app::cli, logging};
 
-#[derive(PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct BeatportConfig {
     pub username: String,
     pub password: String,
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct AiConfig {
+    pub token: String,
 }
 
 #[derive(PartialEq, Debug, Serialize, Deserialize)]
@@ -43,6 +48,9 @@ pub struct Config {
 
     /// Beatport credentials for API access.
     pub beatport: Option<BeatportConfig>,
+
+    /// AI configuration for OpenAI API access.
+    pub ai: Option<AiConfig>,
 }
 
 struct MusicFileTypes(Vec<String>);
@@ -71,6 +79,7 @@ impl Default for Config {
             data_path: PathBuf::from_str("./data").unwrap(),
             music_file_types: Default::default(),
             beatport: None,
+            ai: None,
         }
     }
 }
