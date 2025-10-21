@@ -21,6 +21,8 @@ pub enum ItemStatus<Output, Error> {
     Waiting,
     /// The work is currently being processed
     Running,
+    /// The work was skipped (e.g., stage not configured)
+    Skipped(String),
     /// The work has completed with a result
     Complete(Result<Output, Error>),
 }
@@ -133,6 +135,24 @@ impl<Input, Output, Error> ConcurrentSender<Input, Output, Error> {
         let _ = status_tx.send(ItemStatus::Waiting);
 
         self.tx.send((input, status_tx)).unwrap();
+        SentItem { status_rx }
+    }
+
+    /// Create a SentItem that immediately reports as skipped.
+    ///
+    /// This is useful for stages that are not configured or don't need to run.
+    /// The returned SentItem will immediately report a Skipped status.
+    ///
+    /// # Returns
+    ///
+    /// A [`SentItem`] handle that immediately reports Skipped status.
+    pub fn send_skipped(&self, reason: String) -> SentItem<Output, Error> {
+        let (status_tx, status_rx) = mpsc::unbounded_channel();
+
+        // Send Skipped status and close the channel
+        let _ = status_tx.send(ItemStatus::Skipped(reason));
+        drop(status_tx);
+
         SentItem { status_rx }
     }
 }
