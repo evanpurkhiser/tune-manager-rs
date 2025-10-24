@@ -4,7 +4,7 @@ use id3::{self, Tag, TagLike, Version, frame};
 use thiserror::Error;
 
 use crate::processing::concurrent::{
-    ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
+    self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
 };
 use crate::{
     convert, media_hash,
@@ -145,6 +145,7 @@ pub type PrepareMediaProcessor = ConcurrentProcessor<
 pub type PrepareMediaSender =
     ConcurrentSender<PrepareMediaInput, PrepareMediaResult, PrepareMediaError>;
 pub type PrepareMediaSentItem = SentItem<PrepareMediaResult, PrepareMediaError>;
+pub type ItemStatus = concurrent::ItemStatus<PrepareMediaResult, PrepareMediaError>;
 
 impl Default for PrepareMediaError {
     fn default() -> Self {

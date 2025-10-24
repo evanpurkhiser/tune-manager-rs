@@ -11,7 +11,7 @@ use crate::{
     ai,
     app::config::AiConfig,
     processing::concurrent::{
-        ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
+        self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
     },
     track::{Track, TrackRevision},
 };
@@ -48,6 +48,7 @@ type AiProcessFn = Box<dyn Fn(AiInput) -> AiFuture + Send + Sync>;
 pub type AiProcessor = ConcurrentProcessor<AiInput, AiResult, AiError, AiProcessFn, AiFuture>;
 pub type AiSender = ConcurrentSender<AiInput, AiResult, AiError>;
 pub type AiSentItem = SentItem<AiResult, AiError>;
+pub type ItemStatus = concurrent::ItemStatus<AiResult, AiError>;
 
 pub fn new_ai_processor(ai_config: Option<&AiConfig>) -> AiProcessor {
     let token = ai_config.map(|config| Arc::new(config.token.clone()));

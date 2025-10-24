@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::{
     keyfinder::{self, KeyfinderError},
     processing::concurrent::{
-        ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
+        self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
     },
     track::TrackRevision,
 };
@@ -35,6 +35,7 @@ pub type KeyfinderProcessor = ConcurrentProcessor<
 >;
 pub type KeyfinderSender = ConcurrentSender<KeyfinderInput, KeyfinderResult, KeyfinderError>;
 pub type KeyfinderSentItem = SentItem<KeyfinderResult, KeyfinderError>;
+pub type ItemStatus = concurrent::ItemStatus<KeyfinderResult, KeyfinderError>;
 
 pub fn new_keyfinder_processor() -> KeyfinderProcessor {
     concurrent_processor_with_limit(

@@ -12,7 +12,7 @@ use crate::{
         BeatportTrackInfo, try_extract_url,
     },
     processing::concurrent::{
-        ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
+        self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
     },
     track::TrackRevision,
 };
@@ -62,6 +62,7 @@ pub type BeatportProcessor = ConcurrentProcessor<
 >;
 pub type BeatportSender = ConcurrentSender<BeatportInput, BeatportResult, BeatportError>;
 pub type BeatportSentItem = SentItem<BeatportResult, BeatportError>;
+pub type ItemStatus = concurrent::ItemStatus<BeatportResult, BeatportError>;
 
 pub fn new_beatport_processor(beatport_config: Option<&BeatportConfig>) -> BeatportProcessor {
     let credentials = beatport_config.map(|config| {
