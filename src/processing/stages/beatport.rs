@@ -8,8 +8,8 @@ use tracing::debug;
 use crate::{
     app::config::BeatportConfig,
     beatport::{
-        self, Authenticated, BeatportApiError, BeatportCredentials, BeatportSource,
-        BeatportTrackInfo, try_extract_url,
+        Authenticated, BeatportApiError, BeatportCredentials, BeatportSource, BeatportTrackInfo,
+        try_extract_track_id, try_extract_url,
     },
     processing::concurrent::{
         self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
@@ -99,7 +99,7 @@ async fn process_beatport_input(
 
     debug!("Found Beatport URL: {}", url);
 
-    let Some(track_id) = beatport::try_extract_track_id(&url) else {
+    let Some(track_id) = try_extract_track_id(&url) else {
         debug!("Could not extract track ID from Beatport URL");
         return Ok(BeatportResult { track_info: None });
     };
