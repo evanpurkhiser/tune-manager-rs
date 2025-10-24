@@ -6,7 +6,7 @@ use tracing::level_filters::LevelFilter;
 
 use crate::app::{cli::VERSION, config};
 
-use tracing_subscriber::{prelude::*, Layer};
+use tracing_subscriber::{Layer, prelude::*};
 
 /// Controls the log format.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Deserialize, Serialize, clap::ValueEnum)]

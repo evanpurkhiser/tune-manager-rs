@@ -13,4 +13,3 @@ pub fn walk_music_files<P: AsRef<Path>>(path: P) -> impl Iterator<Item = DirEntr
         .filter(|e| !IGNORED_FILES.contains(&e.file_name().to_str().unwrap_or("")))
         .filter(|e| e.file_type().is_file())
 }
-
