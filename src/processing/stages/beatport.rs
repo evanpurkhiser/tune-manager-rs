@@ -1,4 +1,4 @@
-use std::{io, sync::Arc};
+use std::{io, path::PathBuf, sync::Arc};
 
 use id3::Tag;
 use thiserror::Error;
@@ -40,6 +40,7 @@ pub enum BeatportError {
 
 #[derive(Debug)]
 pub struct BeatportInput {
+    pub file_path: PathBuf,
     pub tag: Tag,
 }
 
