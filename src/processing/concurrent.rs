@@ -98,19 +98,6 @@ impl<Input, Output, Error> Clone for ConcurrentSender<Input, Output, Error> {
     }
 }
 
-/// A handle representing work that has been sent to a concurrent processor.
-///
-/// This handle can be used to monitor the status of the processing operation,
-/// including whether it's waiting, running, or complete.
-///
-/// # Type Parameters
-///
-/// * `Output` - The output type returned by successful processing
-/// * `Error` - The error type returned by failed processing
-pub struct SentItem<Output, Error> {
-    status_rx: mpsc::UnboundedReceiver<ItemStatus<Output, Error>>,
-}
-
 impl<Input, Output, Error> ConcurrentSender<Input, Output, Error> {
     /// Send work to the concurrent processor.
     ///
@@ -157,6 +144,39 @@ impl<Input, Output, Error> ConcurrentSender<Input, Output, Error> {
     }
 }
 
+/// A trait for abstracting over different types of sent items from concurrent processors.
+///
+/// This trait provides a common interface for monitoring the status of work submitted
+/// to any concurrent processor, regardless of the specific input/output types.
+/// It enables generic monitoring functions that can work with any stage's sent items.
+///
+/// The trait is automatically implemented for all `SentItem<Output, Error>` types
+/// through a blanket implementation, so stage-specific types like `PrepareMediaSentItem`,
+/// `KeyfinderSentItem`, etc. automatically support this trait.
+///
+/// # Type Parameters
+///
+/// * `ItemStatus` - The status type returned by this sent item (e.g., `ItemStatus<Output, Error>`)
+/// ```
+pub trait SentItemLike {
+    type SentItemStatus;
+
+    async fn next_status(&mut self) -> Option<Self::SentItemStatus>;
+}
+
+/// A handle representing work that has been sent to a concurrent processor.
+///
+/// This handle can be used to monitor the status of the processing operation,
+/// including whether it's waiting, running, or complete.
+///
+/// # Type Parameters
+///
+/// * `Output` - The output type returned by successful processing
+/// * `Error` - The error type returned by failed processing
+pub struct SentItem<Output, Error> {
+    status_rx: mpsc::UnboundedReceiver<ItemStatus<Output, Error>>,
+}
+
 impl<Output, Error> SentItem<Output, Error> {
     /// Wait for the next status update.
     ///
@@ -189,6 +209,14 @@ impl<Output, Error> SentItem<Output, Error> {
             }
         }
         panic!("Processor was dropped before completing")
+    }
+}
+
+impl<Output, Error> SentItemLike for SentItem<Output, Error> {
+    type SentItemStatus = ItemStatus<Output, Error>;
+
+    async fn next_status(&mut self) -> Option<Self::SentItemStatus> {
+        self.next_status().await
     }
 }
 
