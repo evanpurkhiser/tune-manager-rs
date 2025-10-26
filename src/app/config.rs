@@ -150,6 +150,7 @@ mod tests {
                     data_path: PathBuf::from_str("/home/evan/tunes-importer-data").unwrap(),
                     music_file_types: Default::default(),
                     beatport: None,
+                    ai: None,
                 }
             );
             Ok(())
