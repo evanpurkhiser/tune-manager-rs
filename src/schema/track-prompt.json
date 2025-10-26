@@ -57,6 +57,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "media_hash",
         "artist",
         "title",
         "album",
@@ -69,6 +70,10 @@
         "track"
       ],
       "properties": {
+        "media_hash": {
+          "type": "string",
+          "description": "The exact media_hash value from the input CSV for this track. This is used to map the response back to the original file."
+        },
         "artist": { "$ref": "#/$defs/Artist" },
         "title": { "$ref": "#/$defs/Title" },
         "album": { "$ref": "#/$defs/Album" },

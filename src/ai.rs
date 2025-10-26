@@ -1,4 +1,4 @@
-use std::sync::LazyLock;
+use std::{collections::HashSet, sync::LazyLock};
 
 use async_openai::{
     Client,
@@ -113,10 +113,17 @@ pub enum AiError {
 
     #[error("No text content found in response")]
     NoTextContent,
+
+    #[error("Input track missing media_hash: {file_path}")]
+    MissingMediaHash { file_path: String },
+
+    #[error("AI response missing media_hashes: {missing:?}")]
+    ResponseMissingMediaHashes { missing: Vec<String> },
 }
 
 #[derive(Serialize)]
 struct TrackCsv {
+    media_hash: String,
     file_path: String,
     artist: Option<String>,
     title: Option<String>,
@@ -130,12 +137,20 @@ struct TrackCsv {
     track: Option<String>,
 }
 
-impl From<&Track> for TrackCsv {
-    fn from(track: &Track) -> Self {
-        let tags = &track.tags;
+impl TryFrom<&Track> for TrackCsv {
+    type Error = AiError;
 
-        Self {
-            file_path: track.metadata.file_path.to_string_lossy().to_string(),
+    fn try_from(track: &Track) -> Result<Self, Self::Error> {
+        let tags = &track.tags;
+        let file_path = track.metadata.file_path.to_string_lossy().to_string();
+
+        let media_hash = tags.media_hash.clone().ok_or(AiError::MissingMediaHash {
+            file_path: file_path.clone(),
+        })?;
+
+        Ok(Self {
+            media_hash,
+            file_path,
             artist: tags.artist.clone(),
             title: tags.title.clone(),
             album: tags.album.clone(),
@@ -146,7 +161,7 @@ impl From<&Track> for TrackCsv {
             genre: tags.genre.clone(),
             disc: tags.disc.as_ref().map(|d| d.to_string()),
             track: tags.track.as_ref().map(|t| t.to_string()),
-        }
+        })
     }
 }
 
@@ -154,11 +169,34 @@ fn tracks_to_csv(tracks: &[Track]) -> Result<String, AiError> {
     let mut csv_writer = csv::Writer::from_writer(Vec::new());
 
     for track in tracks {
-        csv_writer.serialize(TrackCsv::from(track))?;
+        csv_writer.serialize(TrackCsv::try_from(track)?)?;
     }
 
     let csv_data = String::from_utf8(csv_writer.into_inner().unwrap())?;
     Ok(csv_data)
+}
+
+fn validate_response_media_hashes(
+    input_tracks: &[Track],
+    response: &schema_types::PromptResponse,
+) -> Result<(), AiError> {
+    let input_hashes: HashSet<_> = input_tracks
+        .iter()
+        .filter_map(|t| t.tags.media_hash.as_ref())
+        .collect();
+
+    let response_hashes: HashSet<_> = response.tracks.iter().map(|t| &t.media_hash).collect();
+
+    let missing: Vec<String> = input_hashes
+        .difference(&response_hashes)
+        .map(|s| s.to_string())
+        .collect();
+
+    if !missing.is_empty() {
+        return Err(AiError::ResponseMissingMediaHashes { missing });
+    }
+
+    Ok(())
 }
 
 pub async fn process_tracks(
@@ -207,6 +245,8 @@ pub async fn process_tracks(
 
     let payload: schema_types::PromptResponse = serde_json::from_str(text_content)?;
 
+    validate_response_media_hashes(&tracks, &payload)?;
+
     Ok(payload)
 }
 
@@ -226,6 +266,7 @@ mod tests {
                 mtime: 1234567890,
             },
             tags: TrackTags {
+                media_hash: Some("098f6bcd4621d373cade4e832627b4f6".to_string()),
                 artist: Some("Test Artist".to_string()),
                 title: Some("Test Title".to_string()),
                 album: Some("Test Album".to_string()),
@@ -275,6 +316,7 @@ mod tests {
 
         // Create AI track response
         let ai_track = schema_types::Track {
+            media_hash: "4092e62ffa902b289811c30f3d8d3794".to_string(),
             artist: "Test Artist Ft. Vocalist".to_string().into(),
             title: "Test Title (Extended Mix)".to_string().into(),
             album: Some("Test Album".to_string()).into(),
@@ -330,6 +372,7 @@ mod tests {
 
         // Create AI track response for a single
         let ai_track = schema_types::Track {
+            media_hash: "4092e62ffa902b289811c30f3d8d3794".to_string(),
             artist: "Single Artist".to_string().into(),
             title: "Single Title".to_string().into(),
             album: None.into(),

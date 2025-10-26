@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     io,
     sync::{Arc, OnceLock},
 };
@@ -38,7 +39,7 @@ pub struct AiInput {
 
 #[derive(Debug)]
 pub struct AiResult {
-    pub responses: Vec<ai::TrackResponse>,
+    pub responses: HashMap<String, ai::TrackResponse>,
 }
 
 type AiFuture =
@@ -82,15 +83,21 @@ async fn process_ai_input(
         .await
         .map_err(AiError::Processing)?;
 
-    Ok(AiResult {
-        responses: response.tracks,
-    })
+    let responses = response
+        .tracks
+        .into_iter()
+        .map(|track| (track.media_hash.clone(), track))
+        .collect();
+
+    Ok(AiResult { responses })
 }
 
-pub fn produce_revision(last_revision: &TrackRevision, result: &AiResult) -> TrackRevision {
+pub fn produce_revision(last_revision: &TrackRevision, result: &AiResult) -> Option<TrackRevision> {
+    let media_hash = last_revision.tags.media_hash.as_ref()?;
+    let track_response = result.responses.get(media_hash)?;
+
     let mut revision = last_revision.clone();
-    if let Some(track_response) = result.responses.first() {
-        track_response.update_track_tags(&mut revision.tags);
-    }
-    TrackRevision::new(revision.tags)
+    track_response.update_track_tags(&mut revision.tags);
+
+    Some(TrackRevision::new(revision.tags))
 }
