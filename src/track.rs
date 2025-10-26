@@ -70,6 +70,7 @@ impl TrackRevision {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, sqlx::FromRow)]
 pub struct TrackTags {
+    pub media_hash: Option<String>,
     pub artist: Option<String>,
     pub title: Option<String>,
     pub album: Option<String>,
@@ -88,6 +89,7 @@ impl From<&Tag> for TrackTags {
     fn from(tag: &Tag) -> Self {
         type T = Id3TagId;
         Self {
+            media_hash: T::MediaHash.read(tag),
             artist: T::Artist.read(tag),
             title: T::Title.read(tag),
             album: T::Album.read(tag),
@@ -243,6 +245,7 @@ mod tests {
     impl Default for TrackTags {
         fn default() -> Self {
             Self {
+                media_hash: Some("098f6bcd4621d373cade4e832627b4f6".to_string()),
                 artist: Some("Artist".to_string()),
                 title: Some("Title".to_string()),
                 album: Some("Album".to_string()),

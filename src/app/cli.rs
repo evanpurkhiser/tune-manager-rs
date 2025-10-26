@@ -61,10 +61,10 @@ pub enum Commands {
         command: DebugCommands,
     },
 
-    #[clap(about = "Process a single file through the processing pipeline")]
+    #[clap(about = "Process audio files through the processing pipeline")]
     Process {
-        #[clap(help = "Path to audio file to process", value_hint = ValueHint::FilePath)]
-        file: PathBuf,
+        #[clap(help = "Path to audio file or directory to process", value_hint = ValueHint::AnyPath)]
+        path: PathBuf,
     },
 }
 

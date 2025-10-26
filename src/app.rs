@@ -27,6 +27,6 @@ pub fn execute() -> io::Result<()> {
                 file,
             } => cmd::debug::beatport::run(username, password, file),
         },
-        cli::Commands::Process { file } => cmd::process::run(file, &config),
+        cli::Commands::Process { path } => cmd::process::run(path, &config),
     }
 }

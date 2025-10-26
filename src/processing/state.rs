@@ -3,7 +3,7 @@ use std::{borrow::Borrow, collections::HashSet};
 use id3::{Tag, TagLike, frame};
 use serde::{Deserialize, Serialize};
 
-use super::ProcessingStage;
+use super::stages::ProcessingStage;
 use crate::track::TrackRevision;
 
 const GEOB_STAGE_FILENAME: &str = "tune-manager-processing-state.json";
