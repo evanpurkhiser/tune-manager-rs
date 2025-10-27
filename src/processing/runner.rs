@@ -27,10 +27,10 @@ pub async fn process_path(path: PathBuf, config: &Config) -> io::Result<()> {
     let coordinator = ProcessingCoordinator::start(config);
 
     // Process all files as a single batch
-    coordinator.process_batch(files);
+    let batch_handle = coordinator.process_batch(files);
 
-    // Wait for processing to complete
-    coordinator.await_completion().await;
+    // Wait for this batch to complete
+    batch_handle.await_completion().await.expect("Failed to wait for batch completion");
 
     info!("Processing completed");
     Ok(())

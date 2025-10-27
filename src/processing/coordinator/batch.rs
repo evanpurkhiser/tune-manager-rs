@@ -6,7 +6,7 @@ use std::{
 };
 
 use id3::Tag;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
 use crate::processing::stages::{ProcessingStage, StageInput, StageStatus, prepare_media};
@@ -41,6 +41,15 @@ pub struct TrackStageStatus {
     pub status: Arc<StageStatus>,
 }
 
+/// State of a batch's processing lifecycle
+#[derive(Debug)]
+pub enum BatchState {
+    /// Batch is currently processing, holds sender to notify on completion
+    Processing(oneshot::Sender<()>),
+    /// Batch has completed all processing
+    Complete,
+}
+
 /// Represents a batch of tracks being processed together
 #[derive(Debug)]
 pub struct ProcessingBatch {
@@ -51,11 +60,14 @@ pub struct ProcessingBatch {
 
     /// Map of file paths to their processing state
     pub tracks: HashMap<PathBuf, TrackProcessingState>,
+
+    /// Current state of the batch
+    pub state: BatchState,
 }
 
 impl ProcessingBatch {
-    /// Create a new ProcessingBatch with the given files
-    pub fn new(files: Vec<PathBuf>) -> Self {
+    /// Create a new ProcessingBatch with the given files and completion sender
+    pub fn new(files: Vec<PathBuf>, completion_tx: oneshot::Sender<()>) -> Self {
         let mut tracks = HashMap::new();
         for file_path in files {
             let track_state = TrackProcessingState::new(file_path.clone());
@@ -66,7 +78,17 @@ impl ProcessingBatch {
             id: BatchId::new(),
             stage_dispatched: HashSet::new(),
             tracks,
+            state: BatchState::Processing(completion_tx),
         }
+    }
+
+    /// Check if all tracks in this batch have completed all processing stages
+    pub fn is_complete(&self) -> bool {
+        use strum::IntoEnumIterator;
+
+        self.tracks.values().all(|track| {
+            ProcessingStage::iter().all(|stage| track.is_stage_done(&stage))
+        })
     }
 }
 
@@ -125,6 +147,26 @@ impl TrackProcessingState {
         };
 
         stage_ready && !self.stage_dispatched.contains(stage)
+    }
+}
+
+/// Handle to a processing batch that allows waiting for completion
+pub struct BatchHandle {
+    batch_id: BatchId,
+    completion_rx: oneshot::Receiver<()>,
+}
+
+impl BatchHandle {
+    pub fn new(batch_id: BatchId, completion_rx: oneshot::Receiver<()>) -> Self {
+        Self {
+            batch_id,
+            completion_rx,
+        }
+    }
+
+    /// Wait for this batch to complete processing
+    pub async fn await_completion(self) -> Result<(), oneshot::error::RecvError> {
+        self.completion_rx.await
     }
 }
 

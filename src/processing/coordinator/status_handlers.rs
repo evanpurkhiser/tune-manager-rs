@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, mem::replace, path::PathBuf};
 
 use tokio::sync::mpsc;
 use tracing::{error, info};
@@ -18,7 +18,7 @@ use crate::{
 };
 
 use super::batch::{
-    BatchId, BatchStageInput, ProcessingBatch, TrackProcessingState, TrackStageStatus,
+    BatchId, BatchStageInput, BatchState, ProcessingBatch, TrackProcessingState, TrackStageStatus,
 };
 
 /// Handle a status update from a processor
@@ -96,6 +96,15 @@ pub fn handle_track_status(
 
     if dispatch_next_stage {
         dispatch_next_stages(batch, stage_dispatch_tx);
+    }
+
+    // Check if batch is complete and notify if so
+    if batch.is_complete() {
+        info!("Batch {} completed", batch_id);
+        if let BatchState::Processing(completion_tx) = replace(&mut batch.state, BatchState::Complete)
+        {
+            let _ = completion_tx.send(());
+        }
     }
 }
 

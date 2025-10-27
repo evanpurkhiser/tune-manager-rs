@@ -10,7 +10,7 @@ use crate::{
     app::config::Config,
     processing::{
         coordinator::{
-            batch::{BatchId, ProcessingBatch, handle_new_batch},
+            batch::{BatchHandle, BatchId, BatchState, ProcessingBatch, handle_new_batch},
             stage_dispatch::handle_stage_dispatch,
             status_handlers::handle_track_status,
         },
@@ -68,6 +68,14 @@ impl ProcessingCoordinator {
                         ),
                     else => break,
                 }
+
+                if batch_rx.is_closed()
+                    && batches
+                        .values()
+                        .all(|b| matches!(b.state, BatchState::Complete))
+                {
+                    break;
+                }
             }
         });
 
@@ -78,11 +86,22 @@ impl ProcessingCoordinator {
     }
 
     /// Create and process a batch of files
-    pub fn process_batch(&self, files: Vec<PathBuf>) {
-        let _ = self.batch_sender.send(ProcessingBatch::new(files));
+    pub fn process_batch(&self, files: Vec<PathBuf>) -> BatchHandle {
+        let (completion_tx, completion_rx) = tokio::sync::oneshot::channel();
+        let batch = ProcessingBatch::new(files, completion_tx);
+        let batch_id = batch.id.clone();
+
+        let _ = self.batch_sender.send(batch);
+
+        BatchHandle::new(batch_id, completion_rx)
     }
 
-    pub async fn await_completion(self) {
+    /// Stop accepting new batches and wait for all existing batches to complete
+    pub async fn shutdown(self) {
+        // Drop batch_sender to signal no more batches will be added
+        drop(self.batch_sender);
+
+        // Wait for main loop to finish processing all existing batches
         let _ = self.main_loop_handle.await;
     }
 }
