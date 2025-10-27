@@ -101,7 +101,8 @@ pub fn handle_track_status(
     // Check if batch is complete and notify if so
     if batch.is_complete() {
         info!("Batch {} completed", batch_id);
-        if let BatchState::Processing(completion_tx) = replace(&mut batch.state, BatchState::Complete)
+        if let BatchState::Processing(completion_tx) =
+            replace(&mut batch.state, BatchState::Complete)
         {
             let _ = completion_tx.send(());
         }

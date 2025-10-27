@@ -86,9 +86,9 @@ impl ProcessingBatch {
     pub fn is_complete(&self) -> bool {
         use strum::IntoEnumIterator;
 
-        self.tracks.values().all(|track| {
-            ProcessingStage::iter().all(|stage| track.is_stage_done(&stage))
-        })
+        self.tracks
+            .values()
+            .all(|track| ProcessingStage::iter().all(|stage| track.is_stage_done(&stage)))
     }
 }
 
