@@ -5,6 +5,7 @@ pub mod status_handlers;
 use std::{collections::HashMap, path::PathBuf};
 
 use tokio::{sync::mpsc, task::JoinHandle};
+use tokio_util::sync::CancellationToken;
 
 use crate::{
     app::config::Config,
@@ -21,6 +22,7 @@ use crate::{
 /// Coordinates processing of multiple batches through all stages
 pub struct ProcessingCoordinator {
     batch_sender: mpsc::UnboundedSender<ProcessingBatch>,
+    cancellation_token: CancellationToken,
     main_loop_handle: JoinHandle<()>,
 }
 
@@ -31,6 +33,7 @@ impl ProcessingCoordinator {
         let (stage_dispatch_tx, mut stage_dispatch_rx) = mpsc::unbounded_channel();
         let (status_update_tx, mut status_update_rx) = mpsc::unbounded_channel();
         let (batch_sender, mut batch_rx) = mpsc::unbounded_channel();
+        let cancellation_token = CancellationToken::new();
 
         // Create and start all processors
         let prepare_media_processor = prepare_media::new_prepare_media_processor();
@@ -50,9 +53,14 @@ impl ProcessingCoordinator {
         tokio::spawn(ai_processor.start());
 
         // Start the status handler loop and wait for completion
+        let token_clone = cancellation_token.clone();
         let main_loop_handle = tokio::spawn(async move {
             loop {
                 tokio::select! {
+                    _ = token_clone.cancelled() => {
+                        // Immediate shutdown requested
+                        break;
+                    }
                     Some(batch) = batch_rx.recv() =>
                         handle_new_batch(&mut batches, &stage_dispatch_tx, batch),
                     Some(track_status) = status_update_rx.recv() =>
@@ -81,6 +89,7 @@ impl ProcessingCoordinator {
 
         Self {
             batch_sender,
+            cancellation_token,
             main_loop_handle,
         }
     }
@@ -103,5 +112,10 @@ impl ProcessingCoordinator {
 
         // Wait for main loop to finish processing all existing batches
         let _ = self.main_loop_handle.await;
+    }
+
+    /// Immediately stop all processing and exit
+    pub fn force_shutdown(&self) {
+        self.cancellation_token.cancel();
     }
 }
