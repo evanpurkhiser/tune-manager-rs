@@ -1,8 +1,9 @@
 use std::{io, path::Path, process::Command};
 
 use thiserror::Error;
+use tune_manager_derive::ProcessingError;
 
-#[derive(Error, Debug)]
+#[derive(ProcessingError, Error, Debug)]
 pub enum KeyfinderError {
     #[error("Invalid input path")]
     BadPath,

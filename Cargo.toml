@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/tune-manager",
+    "crates/tune-manager-derive",
 ]
 
 [workspace.package]

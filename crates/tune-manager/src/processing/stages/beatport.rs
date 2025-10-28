@@ -4,6 +4,7 @@ use id3::Tag;
 use thiserror::Error;
 use tokio::sync::OnceCell;
 use tracing::debug;
+use tune_manager_derive::ProcessingError;
 
 use crate::{
     app::config::BeatportConfig,
@@ -20,7 +21,7 @@ use crate::{
 /// Maximum number of concurrent beatport API requests allowed
 const BEATPORT_CONCURRENCY_LIMIT: usize = 12;
 
-#[derive(Error, Debug)]
+#[derive(ProcessingError, Error, Debug)]
 pub enum BeatportError {
     #[error("No Beatport URL found in tag")]
     NoUrl,
@@ -28,6 +29,7 @@ pub enum BeatportError {
     #[error("Invalid Beatport URL format")]
     InvalidUrl,
 
+    #[CausesSkip]
     #[error("Beatport not configured")]
     NotConfigured,
 

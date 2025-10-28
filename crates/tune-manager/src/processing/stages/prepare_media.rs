@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use id3::{self, Tag, TagLike, Version, frame};
 use thiserror::Error;
+use tune_manager_derive::ProcessingError;
 
 use crate::processing::concurrent::{
     self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
@@ -86,7 +87,7 @@ fn ensure_media_hash(path: impl AsRef<Path>, tag: &mut Tag) -> Result<Vec<u8>, M
     Ok(identifier)
 }
 
-#[derive(Error, Debug)]
+#[derive(ProcessingError, Error, Debug)]
 pub enum PrepareMediaError {
     #[error(transparent)]
     Container(#[from] ContainerError),

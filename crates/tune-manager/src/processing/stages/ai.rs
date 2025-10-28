@@ -7,6 +7,7 @@ use std::{
 use async_openai::{Client, config::OpenAIConfig};
 use thiserror::Error;
 use tracing::debug;
+use tune_manager_derive::ProcessingError;
 
 use crate::{
     ai,
@@ -20,8 +21,9 @@ use crate::{
 /// Maximum number of concurrent AI API requests allowed
 const AI_CONCURRENCY_LIMIT: usize = 4;
 
-#[derive(Error, Debug)]
+#[derive(ProcessingError, Error, Debug)]
 pub enum AiError {
+    #[CausesSkip]
     #[error("OpenAI not configured")]
     NotConfigured,
 

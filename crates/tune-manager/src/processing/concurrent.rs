@@ -12,6 +12,8 @@ use futures::StreamExt;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
+use crate::processing::error::ProcessingError;
+
 /// Status of an item being processed.
 ///
 /// Represents the current state of work submitted to a concurrent processor.
@@ -272,7 +274,10 @@ where
     ///
     /// This method should typically be called within `tokio::spawn()` to run
     /// the processor in the background.
-    pub async fn start(self) {
+    pub async fn start(self)
+    where
+        Error: ProcessingError,
+    {
         let stream: UnboundedReceiverStream<_> = self.rx.into();
         let process_fn = Arc::new(self.process_fn);
 
@@ -286,8 +291,13 @@ where
                     // Process the input
                     let result = process_fn(input).await;
 
-                    // Update status to Complete with result
-                    let _ = status_tx.send(ItemStatus::Complete(result));
+                    // Check if error causes skip
+                    let status = match &result {
+                        Err(e) if e.causes_skip() => ItemStatus::Skipped(e.to_string()),
+                        _ => ItemStatus::Complete(result),
+                    };
+
+                    let _ = status_tx.send(status);
                 }
             })
             .await;
