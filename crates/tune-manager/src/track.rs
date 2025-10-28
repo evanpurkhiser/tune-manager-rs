@@ -148,10 +148,10 @@ impl Track {
         });
 
         //If the album has multiple discs include them as a directory
-        if let Some(CountField::Valid(count)) = tags.disc.as_ref() {
-            if count.total > 1 {
-                path_parts.push(format!("Disc {}", count.number));
-            }
+        if let Some(CountField::Valid(count)) = tags.disc.as_ref()
+            && count.total > 1
+        {
+            path_parts.push(format!("Disc {}", count.number));
         }
 
         // Construct track filename
@@ -165,17 +165,17 @@ impl Track {
         let mut file_parts = vec![];
 
         // If part of an album or EP include the track number
-        if tags.album.is_some() {
-            if let Some(CountField::Valid(count)) = tags.track.as_ref() {
-                file_parts.push(format!("{:02}.", count.number));
-            }
+        if tags.album.is_some()
+            && let Some(CountField::Valid(count)) = tags.track.as_ref()
+        {
+            file_parts.push(format!("{:02}.", count.number));
         }
 
         // If this track is a single and has a catalog_id number include it
-        if tags.album.is_none() {
-            if let Some(catalog_id) = tags.catalog_id.as_deref() {
-                file_parts.push(format!("[{}]", catalog_id))
-            }
+        if tags.album.is_none()
+            && let Some(catalog_id) = tags.catalog_id.as_deref()
+        {
+            file_parts.push(format!("[{}]", catalog_id))
         }
 
         // Include key of the track if available

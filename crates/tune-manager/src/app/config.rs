@@ -86,7 +86,7 @@ impl Default for Config {
 
 impl Config {
     /// Load configuration from an optional configuration file and environment
-    pub fn extract(app: &cli::CliApp) -> figment::Result<Config> {
+    pub fn extract(app: &cli::CliApp) -> Result<Config, Box<figment::Error>> {
         let mut builder = Figment::from(Serialized::defaults(Config::default()));
 
         if let Some(path) = &app.config {
@@ -101,7 +101,7 @@ impl Config {
             builder = builder.merge(Serialized::default("log_format", log_format))
         }
 
-        let config: Config = builder.extract()?;
+        let config: Config = builder.extract().map_err(Box::new)?;
         Ok(config)
     }
 }

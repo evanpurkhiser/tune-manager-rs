@@ -67,7 +67,7 @@ async fn run_async(
         .await
         .map_err(|e| {
             error!("Failed to fetch track info for ID {}: {}", track_id, e);
-            io::Error::new(io::ErrorKind::Other, e)
+            io::Error::other(e)
         })?;
 
     println!("{:#?}", track_info);
