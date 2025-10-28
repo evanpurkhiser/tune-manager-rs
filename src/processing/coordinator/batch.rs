@@ -11,6 +11,8 @@ use uuid::Uuid;
 
 use crate::processing::stages::{ProcessingStage, StageInput, StageStatus, prepare_media};
 
+use super::callbacks::{BatchFilteredCallback, CallbackHandle, CallbackRegistry, StatusCallback};
+
 /// Unique identifier for a processing batch
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
 pub struct BatchId(Uuid);
@@ -39,6 +41,22 @@ pub struct TrackStageStatus {
     pub batch_id: BatchId,
     pub file_path: PathBuf,
     pub status: Arc<StageStatus>,
+}
+
+use crate::track::TrackRevision;
+
+/// Events emitted during batch processing
+#[derive(Debug)]
+pub enum StatusEvent<'a> {
+    /// A track's stage status was updated
+    TrackStageUpdate {
+        file_path: PathBuf,
+        batch: &'a ProcessingBatch,
+        status: Arc<StageStatus>,
+        revision: Box<Option<TrackRevision>>,
+    },
+    /// A batch completed all processing
+    BatchCompleted { batch: &'a ProcessingBatch },
 }
 
 /// State of a batch's processing lifecycle
@@ -154,14 +172,28 @@ impl TrackProcessingState {
 pub struct BatchHandle {
     batch_id: BatchId,
     completion_rx: oneshot::Receiver<()>,
+    callback_registry: Arc<CallbackRegistry>,
 }
 
 impl BatchHandle {
-    pub fn new(batch_id: BatchId, completion_rx: oneshot::Receiver<()>) -> Self {
+    pub fn new(
+        batch_id: BatchId,
+        completion_rx: oneshot::Receiver<()>,
+        callback_registry: Arc<CallbackRegistry>,
+    ) -> Self {
         Self {
             batch_id,
             completion_rx,
+            callback_registry,
         }
+    }
+
+    /// Register a callback that receives events for this specific batch
+    pub fn on_status<C: StatusCallback + 'static>(&self, callback: C) -> CallbackHandle {
+        self.callback_registry.register(BatchFilteredCallback::new(
+            self.batch_id.clone(),
+            Arc::new(callback),
+        ))
     }
 
     /// Wait for this batch to complete processing

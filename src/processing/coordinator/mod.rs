@@ -1,8 +1,9 @@
 pub mod batch;
+pub mod callbacks;
 pub mod stage_dispatch;
 pub mod status_handlers;
 
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use tokio::{sync::mpsc, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
@@ -12,6 +13,7 @@ use crate::{
     processing::{
         coordinator::{
             batch::{BatchHandle, BatchId, BatchState, ProcessingBatch, handle_new_batch},
+            callbacks::{CallbackHandle, CallbackRegistry, StatusCallback},
             stage_dispatch::handle_stage_dispatch,
             status_handlers::handle_track_status,
         },
@@ -22,6 +24,7 @@ use crate::{
 /// Coordinates processing of multiple batches through all stages
 pub struct ProcessingCoordinator {
     batch_sender: mpsc::UnboundedSender<ProcessingBatch>,
+    callback_registry: Arc<CallbackRegistry>,
     cancellation_token: CancellationToken,
     main_loop_handle: JoinHandle<()>,
 }
@@ -33,6 +36,7 @@ impl ProcessingCoordinator {
         let (stage_dispatch_tx, mut stage_dispatch_rx) = mpsc::unbounded_channel();
         let (status_update_tx, mut status_update_rx) = mpsc::unbounded_channel();
         let (batch_sender, mut batch_rx) = mpsc::unbounded_channel();
+        let callback_registry = Arc::new(CallbackRegistry::new());
         let cancellation_token = CancellationToken::new();
 
         // Create and start all processors
@@ -52,8 +56,9 @@ impl ProcessingCoordinator {
         let ai_sender = ai_processor.get_sender();
         tokio::spawn(ai_processor.start());
 
-        // Start the status handler loop and wait for completion
         let token_clone = cancellation_token.clone();
+        let cb_registry = callback_registry.clone();
+
         let main_loop_handle = tokio::spawn(async move {
             loop {
                 tokio::select! {
@@ -64,7 +69,7 @@ impl ProcessingCoordinator {
                     Some(batch) = batch_rx.recv() =>
                         handle_new_batch(&mut batches, &stage_dispatch_tx, batch),
                     Some(track_status) = status_update_rx.recv() =>
-                        handle_track_status(&mut batches, &stage_dispatch_tx, track_status),
+                        handle_track_status(&mut batches, &stage_dispatch_tx, &cb_registry, track_status),
                     Some(input) = stage_dispatch_rx.recv() =>
                         handle_stage_dispatch(
                             input,
@@ -89,6 +94,7 @@ impl ProcessingCoordinator {
 
         Self {
             batch_sender,
+            callback_registry,
             cancellation_token,
             main_loop_handle,
         }
@@ -102,7 +108,7 @@ impl ProcessingCoordinator {
 
         let _ = self.batch_sender.send(batch);
 
-        BatchHandle::new(batch_id, completion_rx)
+        BatchHandle::new(batch_id, completion_rx, self.callback_registry.clone())
     }
 
     /// Stop accepting new batches and wait for all existing batches to complete
@@ -117,5 +123,10 @@ impl ProcessingCoordinator {
     /// Immediately stop all processing and exit
     pub fn force_shutdown(&self) {
         self.cancellation_token.cancel();
+    }
+
+    /// Register a callback to receive status events
+    pub fn on_status<C: StatusCallback + 'static>(&self, callback: C) -> CallbackHandle {
+        self.callback_registry.register(callback)
     }
 }

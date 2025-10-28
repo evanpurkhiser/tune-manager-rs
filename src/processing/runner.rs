@@ -2,7 +2,11 @@ use std::{io, path::PathBuf};
 
 use tracing::info;
 
-use crate::{app::config::Config, file_utils, processing::coordinator::ProcessingCoordinator};
+use crate::{
+    app::config::Config,
+    file_utils,
+    processing::coordinator::{ProcessingCoordinator, batch::StatusEvent, callbacks::callback},
+};
 
 pub async fn process_path(path: PathBuf, config: &Config) -> io::Result<()> {
     let files = if path.is_file() {
@@ -25,6 +29,36 @@ pub async fn process_path(path: PathBuf, config: &Config) -> io::Result<()> {
     };
 
     let coordinator = ProcessingCoordinator::start(config);
+
+    // Register logging callback
+    let _log_handle = coordinator.on_status(callback(|event| match event {
+        StatusEvent::TrackStageUpdate {
+            file_path,
+            status,
+            revision,
+            ..
+        } => {
+            info!(
+                "Status update for {}: {:?} - {:?}",
+                file_path.display(),
+                status.stage(),
+                status.item_status()
+            );
+
+            if let Some(rev) = revision.as_ref() {
+                info!(
+                    "Revision added for {} after {:?}: {}",
+                    file_path.display(),
+                    status.stage(),
+                    serde_json::to_string_pretty(rev)
+                        .unwrap_or_else(|_| "Failed to serialize".to_string())
+                );
+            }
+        }
+        StatusEvent::BatchCompleted { batch } => {
+            info!("Batch {} completed", batch.id);
+        }
+    }));
 
     // Process all files as a single batch
     let batch_handle = coordinator.process_batch(files);

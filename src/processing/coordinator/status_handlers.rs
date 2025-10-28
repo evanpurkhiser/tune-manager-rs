@@ -1,7 +1,7 @@
-use std::{collections::HashMap, mem::replace, path::PathBuf};
+use std::{collections::HashMap, mem::replace, path::PathBuf, sync::Arc};
 
 use tokio::sync::mpsc;
-use tracing::{error, info};
+use tracing::error;
 
 use strum::IntoEnumIterator;
 
@@ -17,14 +17,19 @@ use crate::{
     track::{Track, TrackRevision},
 };
 
-use super::batch::{
-    BatchId, BatchStageInput, BatchState, ProcessingBatch, TrackProcessingState, TrackStageStatus,
+use super::{
+    batch::{
+        BatchId, BatchStageInput, BatchState, ProcessingBatch, StatusEvent, TrackProcessingState,
+        TrackStageStatus,
+    },
+    callbacks::CallbackRegistry,
 };
 
 /// Handle a status update from a processor
 pub fn handle_track_status(
     batches: &mut HashMap<BatchId, ProcessingBatch>,
     stage_dispatch_tx: &mpsc::UnboundedSender<BatchStageInput>,
+    callback_registry: &Arc<CallbackRegistry>,
     track_status: TrackStageStatus,
 ) {
     let TrackStageStatus {
@@ -32,13 +37,6 @@ pub fn handle_track_status(
         file_path,
         status,
     } = track_status;
-
-    info!(
-        "Status update for {}: {:?} - {:?}",
-        file_path.display(),
-        status.stage(),
-        status.item_status()
-    );
 
     let Some(batch) = batches.get_mut(&batch_id) else {
         error!("Received status for unknown batch: {}", batch_id);
@@ -73,26 +71,27 @@ pub fn handle_track_status(
     );
 
     // Handle successful completion - update track tags with new revision
-    if let Some(revision) = revision {
+    if let Some(ref revision) = revision {
         track_state
             .tag
             .as_mut()
             .map(|tag| state::append_track_revision(tag, revision.clone()));
 
-        info!(
-            "Revision added for {} after {:?}: {}",
-            file_path.display(),
-            status.stage(),
-            serde_json::to_string_pretty(&revision)
-                .unwrap_or_else(|_| "Failed to serialize".to_string())
-        );
-
         // TODO: We should write tags here
     }
 
-    track_state.set_stage_status(status);
+    track_state.set_stage_status(status.clone());
 
     batch.tracks.insert(track_key, track_state);
+
+    // Emit track stage update event
+    let track_update_event = StatusEvent::TrackStageUpdate {
+        batch,
+        file_path: file_path.clone(),
+        status,
+        revision: Box::new(revision),
+    };
+    callback_registry.invoke_all(&track_update_event);
 
     if dispatch_next_stage {
         dispatch_next_stages(batch, stage_dispatch_tx);
@@ -100,12 +99,15 @@ pub fn handle_track_status(
 
     // Check if batch is complete and notify if so
     if batch.is_complete() {
-        info!("Batch {} completed", batch_id);
         if let BatchState::Processing(completion_tx) =
             replace(&mut batch.state, BatchState::Complete)
         {
             let _ = completion_tx.send(());
         }
+
+        // Emit batch completed event
+        let batch_completed_event = StatusEvent::BatchCompleted { batch };
+        callback_registry.invoke_all(&batch_completed_event);
     }
 }
 
@@ -166,10 +168,6 @@ fn dispatch_next_stages(
             .all(|track| track.can_run_stage(&ProcessingStage::Ai));
 
         if all_tracks_ready_for_ai {
-            info!(
-                "All tracks in batch {} ready for AI - dispatching batch",
-                batch.id
-            );
             dispatch_ai_batch(&batch.tracks, stage_dispatch_tx, &batch.id);
             batch.stage_dispatched.insert(ProcessingStage::Ai);
         }
