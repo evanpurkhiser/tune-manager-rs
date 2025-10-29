@@ -94,11 +94,5 @@ async fn monitor_stage_completion<T, P, Output, Error>(
             };
             status_tx.send(track_status).unwrap();
         }
-
-        // TODO: Do we actually need to check this? the sent item should get dropped once the
-        // processor completes?
-        if is_done {
-            break;
-        }
     }
 }
