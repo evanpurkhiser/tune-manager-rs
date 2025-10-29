@@ -37,7 +37,10 @@ impl str::FromStr for CountField {
 impl fmt::Display for CountField {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Valid(c) => write!(f, "{}/{}", c.number, c.total),
+            Self::Valid(c) => {
+                let width = c.total.to_string().len();
+                write!(f, "{:0width$}/{}", c.number, c.total, width = width)
+            }
             Self::Invalid(s) => f.write_str(s),
         }
     }
@@ -57,7 +60,7 @@ mod tests {
             total: 10,
         });
         assert_eq!(value, Ok(expect));
-        assert_eq!(value?.to_string(), "1/10");
+        assert_eq!(value?.to_string(), "01/10");
         Ok(())
     }
 
@@ -69,7 +72,7 @@ mod tests {
             total: 10,
         });
         assert_eq!(value, expect);
-        assert_eq!(serde_json::to_string(&value)?, "\"1/10\"");
+        assert_eq!(serde_json::to_string(&value)?, "\"01/10\"");
         Ok(())
     }
 }
