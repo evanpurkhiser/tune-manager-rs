@@ -72,12 +72,10 @@ pub fn handle_track_status(
 
     // Handle successful completion - update track tags with new revision
     if let Some(ref revision) = revision {
-        track_state
-            .tag
-            .as_mut()
-            .map(|tag| state::append_track_revision(tag, revision.clone()));
-
-        // TODO: We should write tags here
+        track_state.tag.as_mut().map(|tag| {
+            state::append_track_revision(tag, revision.clone()).expect("revision added");
+            tag.write_to_path(file_path.clone(), id3::Version::Id3v24)
+        });
     }
 
     track_state.set_stage_status(status.clone());
