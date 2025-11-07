@@ -17,6 +17,26 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            libswresample-dev libavformat-dev libavutil-dev libavcodec-dev libfftw3-dev ffmpeg
+
+      - name: Build libkeyfinder
+        run: |
+          git clone https://github.com/mixxxdj/libkeyfinder keyfinder
+          cd keyfinder
+          cmake -S . -B build
+          cmake --build build
+          sudo cmake --install build
+
+      - name: Build keyfinder-cli
+        run: |
+          cmake -S . -B build
+          cmake --build build
+          sudo cmake --install build
+
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
