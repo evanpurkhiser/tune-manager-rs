@@ -23,15 +23,16 @@ const BEATPORT_CONCURRENCY_LIMIT: usize = 12;
 
 #[derive(ProcessingError, Error, Debug)]
 pub enum BeatportError {
+    #[CausesSkip]
+    #[error("Beatport not configured")]
+    NotConfigured,
+
+    #[CausesSkip]
     #[error("No Beatport URL found in tag")]
     NoUrl,
 
     #[error("Invalid Beatport URL format")]
     InvalidUrl,
-
-    #[CausesSkip]
-    #[error("Beatport not configured")]
-    NotConfigured,
 
     #[error("Beatport API error")]
     Api(#[from] BeatportApiError),
@@ -97,14 +98,14 @@ async fn process_beatport_input(
     };
 
     let Some(url) = try_extract_url(&input.tag) else {
-        return Ok(BeatportResult { track_info: None });
+        return Err(BeatportError::NoUrl);
     };
 
     debug!("Found Beatport URL: {}", url);
 
     let Some(track_id) = try_extract_track_id(&url) else {
         debug!("Could not extract track ID from Beatport URL");
-        return Ok(BeatportResult { track_info: None });
+        return Err(BeatportError::InvalidUrl);
     };
 
     debug!("Extracted Beatport track ID: {}", track_id);
