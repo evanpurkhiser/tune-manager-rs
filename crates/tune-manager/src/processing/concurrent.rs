@@ -341,3 +341,316 @@ where
 {
     ConcurrentProcessor::new(process_fn, concurrency_limit)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use tokio::sync::oneshot;
+    use tune_manager_derive::ProcessingError;
+
+    // Test error type that implements ProcessingError
+    #[derive(Debug, Clone, ProcessingError, thiserror::Error)]
+    enum TestError {
+        #[error("Error: {0}")]
+        Regular(String),
+
+        #[CausesSkip]
+        #[error("Skipped: {0}")]
+        Skip(String),
+    }
+
+    // Helper to collect all statuses from a SentItem
+    async fn collect_statuses<Output, Error>(
+        sent_item: &mut SentItem<Output, Error>,
+    ) -> Vec<ItemStatus<Output, Error>> {
+        let mut statuses = Vec::new();
+        while let Some(status) = sent_item.next_status().await {
+            statuses.push(status);
+        }
+        statuses
+    }
+
+    #[tokio::test]
+    async fn test_basic_successful_processing() {
+        let processor = concurrent_processor_with_limit(Some(1), |x: i32| async move {
+            Ok::<i32, TestError>(x * 2)
+        });
+
+        let sender = processor.get_sender();
+        tokio::spawn(processor.start());
+
+        let result = sender.send(5).result().await;
+        assert_eq!(result.unwrap(), 10);
+    }
+
+    #[tokio::test]
+    async fn test_error_handling() {
+        let processor = concurrent_processor_with_limit(Some(1), |x: i32| async move {
+            if x < 0 {
+                Err(TestError::Regular("negative number".to_string()))
+            } else {
+                Ok(x * 2)
+            }
+        });
+
+        let sender = processor.get_sender();
+        tokio::spawn(processor.start());
+
+        let result = sender.send(-5).result().await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), TestError::Regular(ref r) if r == "negative number"));
+    }
+
+    #[tokio::test]
+    async fn test_skip_error_handling() {
+        let processor = concurrent_processor_with_limit(Some(1), |x: i32| async move {
+            if x == 0 {
+                Err(TestError::Skip("zero not allowed".to_string()))
+            } else {
+                Ok(x * 2)
+            }
+        });
+
+        let sender = processor.get_sender();
+        tokio::spawn(processor.start());
+
+        let mut sent_item = sender.send(0);
+
+        let statuses = collect_statuses(&mut sent_item).await;
+
+        // Should receive Waiting, Running, then Skipped
+        assert_eq!(statuses.len(), 3);
+        assert!(matches!(statuses[0], ItemStatus::Waiting));
+        assert!(matches!(statuses[1], ItemStatus::Running));
+        assert!(matches!(&statuses[2], ItemStatus::Skipped(r) if r == "Skipped: zero not allowed"));
+    }
+
+    #[tokio::test]
+    async fn test_send_skipped() {
+        let processor = concurrent_processor_with_limit(Some(1), |x: i32| async move {
+            Ok::<i32, TestError>(x * 2)
+        });
+
+        let sender = processor.get_sender();
+        tokio::spawn(processor.start());
+
+        let mut sent_item = sender.send_skipped("stage not configured".to_string());
+
+        // Should only receive Skipped status
+        let status = sent_item.next_status().await.unwrap();
+        assert!(matches!(status, ItemStatus::Skipped(r) if r == "stage not configured"));
+
+        // No more statuses
+        assert!(sent_item.next_status().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_status_progression() {
+        let processor = concurrent_processor_with_limit(Some(1), |x: i32| async move {
+            // Yield to ensure status updates are sent
+            tokio::task::yield_now().await;
+            Ok::<i32, TestError>(x * 2)
+        });
+
+        let sender = processor.get_sender();
+        tokio::spawn(processor.start());
+
+        let mut sent_item = sender.send(5);
+
+        let statuses = collect_statuses(&mut sent_item).await;
+
+        // Should receive exactly: Waiting -> Running -> Complete
+        assert_eq!(statuses.len(), 3);
+        assert!(matches!(statuses[0], ItemStatus::Waiting));
+        assert!(matches!(statuses[1], ItemStatus::Running));
+        assert!(matches!(statuses[2], ItemStatus::Complete(Ok(10))));
+    }
+
+    #[tokio::test]
+    async fn test_multiple_work_items() {
+        let processor = concurrent_processor_with_limit(Some(4), |x: i32| async move {
+            Ok::<i32, TestError>(x * 2)
+        });
+
+        let sender = processor.get_sender();
+        tokio::spawn(processor.start());
+
+        let mut handles = Vec::new();
+        for i in 0..10 {
+            handles.push((i, sender.send(i)));
+        }
+
+        // Verify all results
+        for (input, handle) in handles {
+            let result = handle.result().await.unwrap();
+            assert_eq!(result, input * 2);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_mixed_success_and_error() {
+        let processor = concurrent_processor_with_limit(Some(2), |x: i32| async move {
+            if x % 2 == 0 {
+                Ok(x * 2)
+            } else {
+                Err(TestError::Regular(format!("odd number: {}", x)))
+            }
+        });
+
+        let sender = processor.get_sender();
+        tokio::spawn(processor.start());
+
+        let mut handles = Vec::new();
+        for i in 0..10 {
+            handles.push((i, sender.send(i)));
+        }
+
+        // Verify results
+        for (input, handle) in handles {
+            let result = handle.result().await;
+            if input % 2 == 0 {
+                assert_eq!(result.unwrap(), input * 2);
+            } else {
+                assert!(result.is_err());
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_cloneable_sender() {
+        let processor = concurrent_processor_with_limit(Some(2), |x: i32| async move {
+            Ok::<i32, TestError>(x * 2)
+        });
+
+        let sender1 = processor.get_sender();
+        let sender2 = sender1.clone();
+        let sender3 = sender2.clone();
+
+        tokio::spawn(processor.start());
+
+        // Send from different senders
+        let result1 = sender1.send(1).result().await.unwrap();
+        let result2 = sender2.send(2).result().await.unwrap();
+        let result3 = sender3.send(3).result().await.unwrap();
+
+        assert_eq!(result1, 2);
+        assert_eq!(result2, 4);
+        assert_eq!(result3, 6);
+    }
+
+    #[tokio::test]
+    async fn test_order_preservation_within_limit() {
+        // Track the order in which items complete
+        let completion_order = Arc::new(Mutex::new(Vec::new()));
+        let completion_order_clone = Arc::clone(&completion_order);
+
+        let processor = concurrent_processor_with_limit(Some(1), move |x: i32| {
+            let order = Arc::clone(&completion_order_clone);
+            async move {
+                order.lock().unwrap().push(x);
+                Ok::<i32, TestError>(x)
+            }
+        });
+
+        let sender = processor.get_sender();
+        tokio::spawn(processor.start());
+
+        // Send items
+        let mut handles = Vec::new();
+        for i in 0..5 {
+            handles.push(sender.send(i));
+        }
+
+        // Wait for completion
+        for handle in handles {
+            handle.result().await.unwrap();
+        }
+
+        // With concurrency limit of 1, order should be preserved
+        let order = completion_order.lock().unwrap();
+        assert_eq!(*order, vec![0, 1, 2, 3, 4]);
+    }
+
+    #[tokio::test]
+    async fn test_concurrency_limit() {
+        test_concurrency_behavior(Some(2), 5, 1, 2).await;
+    }
+
+    #[tokio::test]
+    async fn test_unlimited_concurrency() {
+        test_concurrency_behavior(None, 20, 10, 20).await;
+    }
+
+    // Helper to test concurrency limits by tracking active task count
+    async fn test_concurrency_behavior(
+        limit: Option<usize>,
+        num_items: usize,
+        expected_min: usize,
+        expected_max: usize,
+    ) {
+        let active_count = Arc::new(AtomicUsize::new(0));
+        let max_concurrent = Arc::new(AtomicUsize::new(0));
+
+        let active_count_clone = Arc::clone(&active_count);
+        let max_concurrent_clone = Arc::clone(&max_concurrent);
+
+        let processor = concurrent_processor_with_limit(limit, move |rx: oneshot::Receiver<()>| {
+            let active_count = Arc::clone(&active_count_clone);
+            let max_concurrent = Arc::clone(&max_concurrent_clone);
+
+            async move {
+                // Increment active count
+                let current = active_count.fetch_add(1, Ordering::SeqCst) + 1;
+
+                // Update max if needed
+                max_concurrent.fetch_max(current, Ordering::SeqCst);
+
+                // Wait for signal to complete
+                let _ = rx.await;
+
+                // Decrement active count
+                active_count.fetch_sub(1, Ordering::SeqCst);
+
+                Ok::<i32, TestError>(0)
+            }
+        });
+
+        let sender = processor.get_sender();
+        tokio::spawn(processor.start());
+
+        // Send items with oneshot receivers
+        let items: Vec<_> = (0..num_items)
+            .map(|_| {
+                let (tx, rx) = oneshot::channel();
+                (sender.send(rx), tx)
+            })
+            .collect();
+
+        // Give tasks time to start
+        tokio::task::yield_now().await;
+        tokio::task::yield_now().await;
+
+        // Check concurrency behavior
+        let max = max_concurrent.load(Ordering::SeqCst);
+        assert!(
+            max >= expected_min,
+            "Max concurrent was {}, expected >= {}",
+            max,
+            expected_min
+        );
+        assert!(
+            max <= expected_max,
+            "Max concurrent was {}, expected <= {}",
+            max,
+            expected_max
+        );
+
+        // Signal all tasks to complete and wait for them
+        for (handle, tx) in items {
+            let _ = tx.send(());
+            handle.result().await.unwrap();
+        }
+    }
+}
