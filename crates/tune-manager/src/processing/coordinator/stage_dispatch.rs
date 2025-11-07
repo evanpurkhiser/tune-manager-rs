@@ -83,8 +83,6 @@ async fn monitor_stage_completion<T, P, Output, Error>(
     let file_paths: Vec<_> = file_paths.into_iter().collect();
 
     while let Some(status) = sent_item.next_status().await {
-        let is_done = matches!(&status, ItemStatus::Complete(_) | ItemStatus::Skipped(_));
-
         let status = Arc::new(status.into());
         for file_path in &file_paths {
             let track_status = TrackStageStatus {
