@@ -1,6 +1,5 @@
 use std::{collections::HashMap, mem::replace, sync::Arc};
 
-use tokio::sync::mpsc;
 use tracing::error;
 
 use crate::{
@@ -13,19 +12,20 @@ use crate::{
 };
 
 use super::{
-    batch::{BatchId, BatchStageInput, BatchState, ProcessingBatch, StatusEvent},
+    batch::{BatchId, BatchState, ProcessingBatch, StatusEvent},
     callbacks::CallbackRegistry,
-    stage_dispatcher::dispatch_next_stages,
     stage_runner::TrackStageStatus,
 };
 
 /// Handle a status update from a processor
-pub fn handle_track_status(
+pub fn handle_track_status<F>(
     batches: &mut HashMap<BatchId, ProcessingBatch>,
-    stage_dispatch_tx: &mpsc::UnboundedSender<BatchStageInput>,
+    dispatch_next_stages: F,
     callback_registry: &Arc<CallbackRegistry>,
     track_status: TrackStageStatus,
-) {
+) where
+    F: FnOnce(&mut ProcessingBatch),
+{
     let TrackStageStatus {
         batch_id,
         file_path,
@@ -83,7 +83,7 @@ pub fn handle_track_status(
     callback_registry.invoke_all(&track_update_event);
 
     if stage_completed {
-        dispatch_next_stages(batch, stage_dispatch_tx);
+        dispatch_next_stages(batch);
     }
 
     // Check if batch is complete and notify if so

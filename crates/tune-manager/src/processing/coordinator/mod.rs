@@ -104,11 +104,19 @@ use crate::app::config::Config;
 use super::stages::{ai, beatport, keyfinder, prepare_media};
 
 use self::{
-    batch::{BatchHandle, BatchId, BatchState, ProcessingBatch, handle_new_batch},
+    batch::{BatchHandle, BatchId, BatchStageInput, BatchState, ProcessingBatch, handle_new_batch},
     callbacks::{CallbackHandle, CallbackRegistry, StatusCallback},
+    stage_dispatcher::dispatch_next_stages,
     stage_runner::handle_stage_dispatch,
     stage_status::handle_track_status,
 };
+
+/// Create a dispatcher closure that captures the stage dispatch channel
+fn get_dispatcher(
+    stage_dispatch_tx: &mpsc::UnboundedSender<BatchStageInput>,
+) -> impl FnOnce(&mut ProcessingBatch) + '_ {
+    |batch| dispatch_next_stages(batch, stage_dispatch_tx)
+}
 
 /// Holds all stage processor senders
 pub struct StageProcessors {
@@ -183,7 +191,7 @@ impl ProcessingCoordinator {
                     Some(batch) = batch_rx.recv() =>
                         handle_new_batch(&mut batches, &stage_dispatch_tx, batch),
                     Some(track_status) = status_update_rx.recv() =>
-                        handle_track_status(&mut batches, &stage_dispatch_tx, &cb_registry, track_status),
+                        handle_track_status(&mut batches, get_dispatcher(&stage_dispatch_tx), &cb_registry, track_status),
                     Some(input) = stage_dispatch_rx.recv() =>
                         handle_stage_dispatch(input, &stage_processors, &status_update_tx),
                     else => break,
