@@ -214,49 +214,8 @@ pub fn handle_new_batch(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::processing::concurrent::ItemStatus;
-    use crate::processing::stages::{ProcessingStage, StageStatus, ai, keyfinder, prepare_media};
-    use std::{collections::HashMap, path::PathBuf};
-
-    // Helper to create a mock StageStatus for testing
-    fn make_status(stage: ProcessingStage, done: bool) -> Arc<StageStatus> {
-        if !done {
-            let status = match stage {
-                ProcessingStage::PrepareMedia => StageStatus::PrepareMedia(ItemStatus::Running),
-                ProcessingStage::Keyfinder => StageStatus::Keyfinder(ItemStatus::Running),
-                ProcessingStage::Beatport => StageStatus::Beatport(ItemStatus::Running),
-                ProcessingStage::Ai => StageStatus::Ai(ItemStatus::Running),
-            };
-            return Arc::new(status);
-        }
-
-        let status = match stage {
-            ProcessingStage::PrepareMedia => {
-                let result = prepare_media::PrepareMediaResult {
-                    file_path: PathBuf::from("/test/file.aiff"),
-                    media_hash: vec![0u8; 16],
-                    tag: Tag::new(),
-                };
-                StageStatus::PrepareMedia(ItemStatus::Complete(Ok(result)))
-            }
-            ProcessingStage::Keyfinder => {
-                let result = keyfinder::KeyfinderResult {
-                    detected_key: Some("10A".to_string()),
-                };
-                StageStatus::Keyfinder(ItemStatus::Complete(Ok(result)))
-            }
-            ProcessingStage::Beatport => {
-                StageStatus::Beatport(ItemStatus::Skipped("No Beatport URL".to_string()))
-            }
-            ProcessingStage::Ai => {
-                let result = ai::AiResult {
-                    responses: HashMap::new(),
-                };
-                StageStatus::Ai(ItemStatus::Complete(Ok(result)))
-            }
-        };
-        Arc::new(status)
-    }
+    use crate::processing::stages::{test_helpers::*, ProcessingStage};
+    use std::path::PathBuf;
 
     #[test]
     fn test_can_run_stage_prepare_media_always_ready() {
@@ -270,7 +229,7 @@ mod tests {
 
         assert!(!track.can_run_stage(&ProcessingStage::Keyfinder));
 
-        track.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
+        track.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
         assert!(track.can_run_stage(&ProcessingStage::Keyfinder));
     }
 
@@ -280,7 +239,7 @@ mod tests {
 
         assert!(!track.can_run_stage(&ProcessingStage::Beatport));
 
-        track.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
+        track.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
         assert!(track.can_run_stage(&ProcessingStage::Beatport));
     }
 
@@ -291,10 +250,10 @@ mod tests {
         assert!(!track.can_run_stage(&ProcessingStage::Ai));
 
         // PrepareMedia alone is not enough for AI
-        track.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
+        track.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
         assert!(!track.can_run_stage(&ProcessingStage::Ai));
 
-        track.set_stage_status(make_status(ProcessingStage::Beatport, true));
+        track.set_stage_status(make_status_completed(ProcessingStage::Beatport));
         assert!(track.can_run_stage(&ProcessingStage::Ai));
     }
 
@@ -314,7 +273,7 @@ mod tests {
 
         assert!(!track.is_stage_done(&ProcessingStage::PrepareMedia));
 
-        track.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
+        track.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
         assert!(track.is_stage_done(&ProcessingStage::PrepareMedia));
     }
 
@@ -323,7 +282,7 @@ mod tests {
         let mut track = TrackProcessingState::new("/test/track.mp3");
 
         // Skipped stages are considered "done"
-        track.set_stage_status(make_status(ProcessingStage::Beatport, true));
+        track.set_stage_status(make_status_completed(ProcessingStage::Beatport));
         assert!(track.is_stage_done(&ProcessingStage::Beatport));
     }
 
@@ -331,7 +290,7 @@ mod tests {
     fn test_is_stage_done_for_running_stage() {
         let mut track = TrackProcessingState::new("/test/track.mp3");
 
-        track.set_stage_status(make_status(ProcessingStage::PrepareMedia, false));
+        track.set_stage_status(make_status_running(ProcessingStage::PrepareMedia));
         assert!(!track.is_stage_done(&ProcessingStage::PrepareMedia));
     }
 
@@ -348,10 +307,10 @@ mod tests {
             .get_mut(&PathBuf::from("/test/track1.mp3"))
             .unwrap();
 
-        track.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
-        track.set_stage_status(make_status(ProcessingStage::Keyfinder, true));
-        track.set_stage_status(make_status(ProcessingStage::Beatport, true));
-        track.set_stage_status(make_status(ProcessingStage::Ai, true));
+        track.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
+        track.set_stage_status(make_status_completed(ProcessingStage::Keyfinder));
+        track.set_stage_status(make_status_completed(ProcessingStage::Beatport));
+        track.set_stage_status(make_status_completed(ProcessingStage::Ai));
 
         assert!(batch.is_complete());
     }
@@ -368,9 +327,9 @@ mod tests {
             .unwrap();
 
         // Missing AI stage
-        track.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
-        track.set_stage_status(make_status(ProcessingStage::Keyfinder, true));
-        track.set_stage_status(make_status(ProcessingStage::Beatport, true));
+        track.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
+        track.set_stage_status(make_status_completed(ProcessingStage::Keyfinder));
+        track.set_stage_status(make_status_completed(ProcessingStage::Beatport));
 
         assert!(!batch.is_complete());
     }
@@ -388,10 +347,10 @@ mod tests {
             .tracks
             .get_mut(&PathBuf::from("/test/track1.mp3"))
             .unwrap();
-        track1.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
-        track1.set_stage_status(make_status(ProcessingStage::Keyfinder, true));
-        track1.set_stage_status(make_status(ProcessingStage::Beatport, true));
-        track1.set_stage_status(make_status(ProcessingStage::Ai, true));
+        track1.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
+        track1.set_stage_status(make_status_completed(ProcessingStage::Keyfinder));
+        track1.set_stage_status(make_status_completed(ProcessingStage::Beatport));
+        track1.set_stage_status(make_status_completed(ProcessingStage::Ai));
 
         assert!(!batch.is_complete());
 
@@ -399,10 +358,10 @@ mod tests {
             .tracks
             .get_mut(&PathBuf::from("/test/track2.mp3"))
             .unwrap();
-        track2.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
-        track2.set_stage_status(make_status(ProcessingStage::Keyfinder, true));
-        track2.set_stage_status(make_status(ProcessingStage::Beatport, true));
-        track2.set_stage_status(make_status(ProcessingStage::Ai, true));
+        track2.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
+        track2.set_stage_status(make_status_completed(ProcessingStage::Keyfinder));
+        track2.set_stage_status(make_status_completed(ProcessingStage::Beatport));
+        track2.set_stage_status(make_status_completed(ProcessingStage::Ai));
 
         assert!(batch.is_complete());
     }
@@ -417,7 +376,7 @@ mod tests {
                 .is_none()
         );
 
-        track.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
+        track.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
 
         let retrieved = track.get_stage_status(&ProcessingStage::PrepareMedia);
         assert!(retrieved.is_some());

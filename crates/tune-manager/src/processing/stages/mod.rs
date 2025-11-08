@@ -166,3 +166,51 @@ impl StageStatus {
         matches!(status, ItemStatus::Complete(_) | ItemStatus::Skipped(_))
     }
 }
+
+#[cfg(test)]
+pub mod test_helpers {
+    use super::*;
+    use id3::Tag;
+    use std::{collections::HashMap, path::PathBuf, sync::Arc};
+
+    /// Create a mock StageStatus with Running status
+    pub fn make_status_running(stage: ProcessingStage) -> Arc<StageStatus> {
+        let status = match stage {
+            ProcessingStage::PrepareMedia => StageStatus::PrepareMedia(ItemStatus::Running),
+            ProcessingStage::Keyfinder => StageStatus::Keyfinder(ItemStatus::Running),
+            ProcessingStage::Beatport => StageStatus::Beatport(ItemStatus::Running),
+            ProcessingStage::Ai => StageStatus::Ai(ItemStatus::Running),
+        };
+        Arc::new(status)
+    }
+
+    /// Create a mock StageStatus with Complete status
+    pub fn make_status_completed(stage: ProcessingStage) -> Arc<StageStatus> {
+        let status = match stage {
+            ProcessingStage::PrepareMedia => {
+                let result = prepare_media::PrepareMediaResult {
+                    file_path: PathBuf::from("/test/file.aiff"),
+                    media_hash: vec![0u8; 16],
+                    tag: Tag::new(),
+                };
+                StageStatus::PrepareMedia(ItemStatus::Complete(Ok(result)))
+            }
+            ProcessingStage::Keyfinder => {
+                let result = keyfinder::KeyfinderResult {
+                    detected_key: Some("10A".to_string()),
+                };
+                StageStatus::Keyfinder(ItemStatus::Complete(Ok(result)))
+            }
+            ProcessingStage::Beatport => {
+                StageStatus::Beatport(ItemStatus::Skipped("No Beatport URL".to_string()))
+            }
+            ProcessingStage::Ai => {
+                let result = ai::AiResult {
+                    responses: HashMap::new(),
+                };
+                StageStatus::Ai(ItemStatus::Complete(Ok(result)))
+            }
+        };
+        Arc::new(status)
+    }
+}
