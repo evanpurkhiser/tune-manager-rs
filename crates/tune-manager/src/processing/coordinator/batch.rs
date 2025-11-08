@@ -10,7 +10,10 @@ use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
 use crate::{
-    processing::stages::{ProcessingStage, StageInput, StageStatus, prepare_media},
+    processing::{
+        coordinator::stage_dispatcher::dispatch_next_stages,
+        stages::{ProcessingStage, StageInput, StageStatus},
+    },
     track::TrackRevision,
 };
 
@@ -203,27 +206,9 @@ pub fn handle_new_batch(
 ) {
     let batch_id = batch.id.clone();
 
-    // Collect PrepareMediaInput
-    let inputs: Vec<BatchStageInput> = batch
-        .tracks
-        .keys()
-        .map(|file_path| {
-            let batch_id = batch_id.clone();
-            let file_path = file_path.clone();
-            let prepare_media_input = prepare_media::PrepareMediaInput { file_path };
-
-            BatchStageInput {
-                batch_id,
-                stage_input: prepare_media_input.into(),
-            }
-        })
-        .collect();
-
     // Register the batch and dispatch the PrepareMedia stage for all tracks
-    batches.insert(batch_id, batch);
-    inputs
-        .into_iter()
-        .for_each(|i| stage_dispatch_tx.send(i).unwrap());
+    batches.insert(batch_id.clone(), batch);
+    dispatch_next_stages(batches.get_mut(&batch_id).unwrap(), stage_dispatch_tx);
 }
 
 #[cfg(test)]
