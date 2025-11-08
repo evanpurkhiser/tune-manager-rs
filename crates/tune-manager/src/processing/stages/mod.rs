@@ -78,6 +78,18 @@ impl From<ai::AiInput> for StageInput {
     }
 }
 
+impl StageInput {
+    /// Get the ProcessingStage that this status represents.
+    pub fn stage(&self) -> ProcessingStage {
+        match self {
+            Self::PrepareMedia(_) => ProcessingStage::PrepareMedia,
+            Self::Keyfinder(_) => ProcessingStage::Keyfinder,
+            Self::Beatport(_) => ProcessingStage::Beatport,
+            Self::Ai(_) => ProcessingStage::Ai,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum StageStatus {
     PrepareMedia(prepare_media::ItemStatus),
