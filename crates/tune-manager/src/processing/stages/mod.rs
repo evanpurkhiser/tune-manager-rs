@@ -177,6 +177,12 @@ impl StageStatus {
         let status = self.item_status();
         matches!(status, ItemStatus::Complete(_) | ItemStatus::Skipped(_))
     }
+
+    /// Check if this stage has failed (completed with an error)
+    pub fn has_failed(&self) -> bool {
+        let status = self.item_status();
+        matches!(status, ItemStatus::Complete(Err(_)))
+    }
 }
 
 #[cfg(test)]

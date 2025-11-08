@@ -41,17 +41,20 @@ pub fn dispatch_next_stages(
         });
 
     // Handle AI batch processing at batch level
-    if !batch.stage_dispatched.contains(&ProcessingStage::Ai) {
-        let all_tracks_ready_for_ai = batch
-            .tracks
-            .values()
-            .all(|track| track.can_run_stage(&ProcessingStage::Ai));
+    let has_dispatched_ai = batch.stage_dispatched.contains(&ProcessingStage::Ai);
 
-        if all_tracks_ready_for_ai {
-            dispatch_ai_batch(&batch.tracks, stage_dispatch_tx, &batch.id);
-            batch.stage_dispatched.insert(ProcessingStage::Ai);
-        }
+    if !has_dispatched_ai && all_tracks_ready_for_ai(&batch.tracks) {
+        dispatch_ai_batch(&batch.tracks, stage_dispatch_tx, &batch.id);
+        batch.stage_dispatched.insert(ProcessingStage::Ai);
     }
+}
+
+/// Check if all non-failed tracks are ready for AI processing
+fn all_tracks_ready_for_ai(tracks: &HashMap<PathBuf, TrackProcessingState>) -> bool {
+    tracks
+        .values()
+        .filter(|track| !track.has_failed_stage())
+        .all(|track| track.can_run_stage(&ProcessingStage::Ai))
 }
 
 /// Create the appropriate StageInput for a given stage and track
@@ -111,6 +114,8 @@ fn dispatch_ai_batch(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use id3::Tag;
     use tokio::sync::oneshot;
 
@@ -392,5 +397,54 @@ mod tests {
 
         // No more dispatches
         assert!(stage_dispatch_rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn test_all_tracks_ready_for_ai_excludes_failed_tracks() {
+        use crate::processing::{
+            concurrent::ItemStatus,
+            stages::{StageStatus, prepare_media},
+        };
+
+        let mut tracks = HashMap::new();
+
+        // Track 1: Ready for AI (all prerequisites complete)
+        let mut track1 = TrackProcessingState::new("/test/track1.mp3");
+        track1.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
+        track1.set_stage_status(make_status_completed(ProcessingStage::Keyfinder));
+        track1.set_stage_status(make_status_completed(ProcessingStage::Beatport));
+        tracks.insert(PathBuf::from("/test/track1.mp3"), track1);
+
+        // Track 2: Failed at PrepareMedia
+        let mut track2 = TrackProcessingState::new("/test/track2.mp3");
+        let error =
+            prepare_media::PrepareMediaError::Container(prepare_media::ContainerError::BadPath);
+        let failed_status = StageStatus::PrepareMedia(ItemStatus::Complete(Err(error)));
+        track2.set_stage_status(Arc::new(failed_status));
+        tracks.insert(PathBuf::from("/test/track2.mp3"), track2);
+
+        // Should be ready for AI because track2 is excluded (failed)
+        // and track1 is ready
+        assert!(all_tracks_ready_for_ai(&tracks));
+    }
+
+    #[test]
+    fn test_all_tracks_ready_for_ai_waits_for_non_failed_tracks() {
+        let mut tracks = HashMap::new();
+
+        // Track 1: Ready for AI
+        let mut track1 = TrackProcessingState::new("/test/track1.mp3");
+        track1.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
+        track1.set_stage_status(make_status_completed(ProcessingStage::Keyfinder));
+        track1.set_stage_status(make_status_completed(ProcessingStage::Beatport));
+        tracks.insert(PathBuf::from("/test/track1.mp3"), track1);
+
+        // Track 2: Still processing (not failed, just not ready yet)
+        let mut track2 = TrackProcessingState::new("/test/track2.mp3");
+        track2.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
+        tracks.insert(PathBuf::from("/test/track2.mp3"), track2);
+
+        // Should NOT be ready for AI because track2 hasn't completed Beatport yet
+        assert!(!all_tracks_ready_for_ai(&tracks));
     }
 }

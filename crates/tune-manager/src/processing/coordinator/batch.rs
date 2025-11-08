@@ -96,13 +96,20 @@ impl ProcessingBatch {
         }
     }
 
-    /// Check if all tracks in this batch have completed all processing stages
+    /// Check if all tracks in this batch have completed processing
+    ///
+    /// A track is considered complete if either:
+    /// - All stages have completed/been skipped, OR
+    /// - Any stage has failed (preventing subsequent stages from running)
     pub fn is_complete(&self) -> bool {
         use strum::IntoEnumIterator;
 
-        self.tracks
-            .values()
-            .all(|track| ProcessingStage::iter().all(|stage| track.is_stage_done(&stage)))
+        self.tracks.values().all(|track| {
+            // Track is complete if any stage has failed or if all stages are done
+            let has_failure = track.has_failed_stage();
+            let all_done = ProcessingStage::iter().all(|stage| track.is_stage_done(&stage));
+            has_failure || all_done
+        })
     }
 }
 
@@ -150,9 +157,18 @@ impl TrackProcessingState {
         self.stage_status.replace(status);
     }
 
+    pub fn has_failed_stage(&self) -> bool {
+        self.stage_status.iter().any(|status| status.has_failed())
+    }
+
     /// Check if all prerequisite stages for a given stage are complete and the stage has not
     /// already been dispatched
     pub fn can_run_stage(&self, stage: &ProcessingStage) -> bool {
+        // Can't run any stage if a previous stage has failed
+        if self.has_failed_stage() {
+            return false;
+        }
+
         let stage_ready = match stage {
             ProcessingStage::PrepareMedia => true,
             ProcessingStage::Keyfinder => self.is_stage_done(ProcessingStage::PrepareMedia),
@@ -214,7 +230,8 @@ pub fn handle_new_batch(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::processing::stages::{test_helpers::*, ProcessingStage};
+    use crate::processing::concurrent::ItemStatus;
+    use crate::processing::stages::{prepare_media, test_helpers::*, ProcessingStage, StageStatus};
     use std::path::PathBuf;
 
     #[test]
@@ -381,5 +398,69 @@ mod tests {
         let retrieved = track.get_stage_status(&ProcessingStage::PrepareMedia);
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().stage(), ProcessingStage::PrepareMedia);
+    }
+
+    #[test]
+    fn test_batch_completes_when_track_has_failed_stage() {
+        let (tx, _rx) = oneshot::channel();
+        let files = vec![PathBuf::from("/test/track1.mp3")];
+        let mut batch = ProcessingBatch::new(files, tx);
+
+        assert!(!batch.is_complete());
+
+        let track = batch
+            .tracks
+            .get_mut(&PathBuf::from("/test/track1.mp3"))
+            .unwrap();
+
+        // Create a failed PrepareMedia status
+        let error = prepare_media::PrepareMediaError::Tag(id3::Error::new(
+            id3::ErrorKind::NoTag,
+            "Test error",
+        ));
+        let failed_status = StageStatus::PrepareMedia(ItemStatus::Complete(Err(error)));
+        track.set_stage_status(Arc::new(failed_status));
+
+        // Batch should be complete even though only PrepareMedia ran (and failed)
+        // The other stages (Keyfinder, Beatport, AI) never ran
+        assert!(batch.is_complete());
+    }
+
+    #[test]
+    fn test_batch_requires_all_tracks_with_mixed_success_and_failure() {
+        let (tx, _rx) = oneshot::channel();
+        let files = vec![
+            PathBuf::from("/test/track1.mp3"),
+            PathBuf::from("/test/track2.mp3"),
+        ];
+        let mut batch = ProcessingBatch::new(files, tx);
+
+        // Track 1 fails at PrepareMedia
+        let track1 = batch
+            .tracks
+            .get_mut(&PathBuf::from("/test/track1.mp3"))
+            .unwrap();
+        let error = prepare_media::PrepareMediaError::Tag(id3::Error::new(
+            id3::ErrorKind::NoTag,
+            "Test error",
+        ));
+        let failed_status = StageStatus::PrepareMedia(ItemStatus::Complete(Err(error)));
+        track1.set_stage_status(Arc::new(failed_status));
+
+        // Batch not complete yet - track2 hasn't finished
+        assert!(!batch.is_complete());
+
+        // Track 2 succeeds through all stages
+        let track2 = batch
+            .tracks
+            .get_mut(&PathBuf::from("/test/track2.mp3"))
+            .unwrap();
+        track2.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
+        track2.set_stage_status(make_status_completed(ProcessingStage::Keyfinder));
+        track2.set_stage_status(make_status_completed(ProcessingStage::Beatport));
+        track2.set_stage_status(make_status_completed(ProcessingStage::Ai));
+
+        // Now batch should be complete - track1 failed, track2 succeeded
+        assert!(batch.is_complete());
     }
 }
