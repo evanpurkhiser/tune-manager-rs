@@ -13,9 +13,10 @@ use crate::{
 };
 
 use super::{
-    batch::{BatchId, BatchStageInput, BatchState, ProcessingBatch, StatusEvent, TrackStageStatus},
+    batch::{BatchId, BatchStageInput, BatchState, ProcessingBatch, StatusEvent},
     callbacks::CallbackRegistry,
     stage_dispatcher::dispatch_next_stages,
+    stage_runner::TrackStageStatus,
 };
 
 /// Handle a status update from a processor

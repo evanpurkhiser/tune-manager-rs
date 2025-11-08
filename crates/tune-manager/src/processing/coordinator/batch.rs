@@ -9,7 +9,10 @@ use id3::Tag;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
-use crate::processing::stages::{ProcessingStage, StageInput, StageStatus, prepare_media};
+use crate::{
+    processing::stages::{ProcessingStage, StageInput, StageStatus, prepare_media},
+    track::TrackRevision,
+};
 
 use super::callbacks::{BatchFilteredCallback, CallbackHandle, CallbackRegistry, StatusCallback};
 
@@ -34,16 +37,6 @@ pub struct BatchStageInput {
     pub batch_id: BatchId,
     pub stage_input: StageInput,
 }
-
-/// Status update for a specific track's stage
-#[derive(Debug)]
-pub struct TrackStageStatus {
-    pub batch_id: BatchId,
-    pub file_path: PathBuf,
-    pub status: Arc<StageStatus>,
-}
-
-use crate::track::TrackRevision;
 
 /// Events emitted during batch processing
 #[derive(Debug)]
@@ -231,4 +224,218 @@ pub fn handle_new_batch(
     inputs
         .into_iter()
         .for_each(|i| stage_dispatch_tx.send(i).unwrap());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::processing::concurrent::ItemStatus;
+    use crate::processing::stages::{ProcessingStage, StageStatus, ai, keyfinder, prepare_media};
+    use std::{collections::HashMap, path::PathBuf};
+
+    // Helper to create a mock StageStatus for testing
+    fn make_status(stage: ProcessingStage, done: bool) -> Arc<StageStatus> {
+        if !done {
+            let status = match stage {
+                ProcessingStage::PrepareMedia => StageStatus::PrepareMedia(ItemStatus::Running),
+                ProcessingStage::Keyfinder => StageStatus::Keyfinder(ItemStatus::Running),
+                ProcessingStage::Beatport => StageStatus::Beatport(ItemStatus::Running),
+                ProcessingStage::Ai => StageStatus::Ai(ItemStatus::Running),
+            };
+            return Arc::new(status);
+        }
+
+        let status = match stage {
+            ProcessingStage::PrepareMedia => {
+                let result = prepare_media::PrepareMediaResult {
+                    file_path: PathBuf::from("/test/file.aiff"),
+                    media_hash: vec![0u8; 16],
+                    tag: Tag::new(),
+                };
+                StageStatus::PrepareMedia(ItemStatus::Complete(Ok(result)))
+            }
+            ProcessingStage::Keyfinder => {
+                let result = keyfinder::KeyfinderResult {
+                    detected_key: Some("10A".to_string()),
+                };
+                StageStatus::Keyfinder(ItemStatus::Complete(Ok(result)))
+            }
+            ProcessingStage::Beatport => {
+                StageStatus::Beatport(ItemStatus::Skipped("No Beatport URL".to_string()))
+            }
+            ProcessingStage::Ai => {
+                let result = ai::AiResult {
+                    responses: HashMap::new(),
+                };
+                StageStatus::Ai(ItemStatus::Complete(Ok(result)))
+            }
+        };
+        Arc::new(status)
+    }
+
+    #[test]
+    fn test_can_run_stage_prepare_media_always_ready() {
+        let track = TrackProcessingState::new("/test/track.mp3");
+        assert!(track.can_run_stage(&ProcessingStage::PrepareMedia));
+    }
+
+    #[test]
+    fn test_can_run_stage_keyfinder_requires_prepare_media() {
+        let mut track = TrackProcessingState::new("/test/track.mp3");
+
+        assert!(!track.can_run_stage(&ProcessingStage::Keyfinder));
+
+        track.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
+        assert!(track.can_run_stage(&ProcessingStage::Keyfinder));
+    }
+
+    #[test]
+    fn test_can_run_stage_beatport_requires_prepare_media() {
+        let mut track = TrackProcessingState::new("/test/track.mp3");
+
+        assert!(!track.can_run_stage(&ProcessingStage::Beatport));
+
+        track.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
+        assert!(track.can_run_stage(&ProcessingStage::Beatport));
+    }
+
+    #[test]
+    fn test_can_run_stage_ai_requires_beatport() {
+        let mut track = TrackProcessingState::new("/test/track.mp3");
+
+        assert!(!track.can_run_stage(&ProcessingStage::Ai));
+
+        // PrepareMedia alone is not enough for AI
+        track.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
+        assert!(!track.can_run_stage(&ProcessingStage::Ai));
+
+        track.set_stage_status(make_status(ProcessingStage::Beatport, true));
+        assert!(track.can_run_stage(&ProcessingStage::Ai));
+    }
+
+    #[test]
+    fn test_can_run_stage_not_ready_if_already_dispatched() {
+        let mut track = TrackProcessingState::new("/test/track.mp3");
+
+        assert!(track.can_run_stage(&ProcessingStage::PrepareMedia));
+
+        track.stage_dispatched.insert(ProcessingStage::PrepareMedia);
+        assert!(!track.can_run_stage(&ProcessingStage::PrepareMedia));
+    }
+
+    #[test]
+    fn test_is_stage_done_for_completed_stage() {
+        let mut track = TrackProcessingState::new("/test/track.mp3");
+
+        assert!(!track.is_stage_done(&ProcessingStage::PrepareMedia));
+
+        track.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
+        assert!(track.is_stage_done(&ProcessingStage::PrepareMedia));
+    }
+
+    #[test]
+    fn test_is_stage_done_for_skipped_stage() {
+        let mut track = TrackProcessingState::new("/test/track.mp3");
+
+        // Skipped stages are considered "done"
+        track.set_stage_status(make_status(ProcessingStage::Beatport, true));
+        assert!(track.is_stage_done(&ProcessingStage::Beatport));
+    }
+
+    #[test]
+    fn test_is_stage_done_for_running_stage() {
+        let mut track = TrackProcessingState::new("/test/track.mp3");
+
+        track.set_stage_status(make_status(ProcessingStage::PrepareMedia, false));
+        assert!(!track.is_stage_done(&ProcessingStage::PrepareMedia));
+    }
+
+    #[test]
+    fn test_batch_is_complete_when_all_stages_done() {
+        let (tx, _rx) = oneshot::channel();
+        let files = vec![PathBuf::from("/test/track1.mp3")];
+        let mut batch = ProcessingBatch::new(files, tx);
+
+        assert!(!batch.is_complete());
+
+        let track = batch
+            .tracks
+            .get_mut(&PathBuf::from("/test/track1.mp3"))
+            .unwrap();
+
+        track.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
+        track.set_stage_status(make_status(ProcessingStage::Keyfinder, true));
+        track.set_stage_status(make_status(ProcessingStage::Beatport, true));
+        track.set_stage_status(make_status(ProcessingStage::Ai, true));
+
+        assert!(batch.is_complete());
+    }
+
+    #[test]
+    fn test_batch_is_not_complete_if_one_stage_missing() {
+        let (tx, _rx) = oneshot::channel();
+        let files = vec![PathBuf::from("/test/track1.mp3")];
+        let mut batch = ProcessingBatch::new(files, tx);
+
+        let track = batch
+            .tracks
+            .get_mut(&PathBuf::from("/test/track1.mp3"))
+            .unwrap();
+
+        // Missing AI stage
+        track.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
+        track.set_stage_status(make_status(ProcessingStage::Keyfinder, true));
+        track.set_stage_status(make_status(ProcessingStage::Beatport, true));
+
+        assert!(!batch.is_complete());
+    }
+
+    #[test]
+    fn test_batch_is_complete_requires_all_tracks() {
+        let (tx, _rx) = oneshot::channel();
+        let files = vec![
+            PathBuf::from("/test/track1.mp3"),
+            PathBuf::from("/test/track2.mp3"),
+        ];
+        let mut batch = ProcessingBatch::new(files, tx);
+
+        let track1 = batch
+            .tracks
+            .get_mut(&PathBuf::from("/test/track1.mp3"))
+            .unwrap();
+        track1.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
+        track1.set_stage_status(make_status(ProcessingStage::Keyfinder, true));
+        track1.set_stage_status(make_status(ProcessingStage::Beatport, true));
+        track1.set_stage_status(make_status(ProcessingStage::Ai, true));
+
+        assert!(!batch.is_complete());
+
+        let track2 = batch
+            .tracks
+            .get_mut(&PathBuf::from("/test/track2.mp3"))
+            .unwrap();
+        track2.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
+        track2.set_stage_status(make_status(ProcessingStage::Keyfinder, true));
+        track2.set_stage_status(make_status(ProcessingStage::Beatport, true));
+        track2.set_stage_status(make_status(ProcessingStage::Ai, true));
+
+        assert!(batch.is_complete());
+    }
+
+    #[test]
+    fn test_get_stage_status() {
+        let mut track = TrackProcessingState::new("/test/track.mp3");
+
+        assert!(
+            track
+                .get_stage_status(&ProcessingStage::PrepareMedia)
+                .is_none()
+        );
+
+        track.set_stage_status(make_status(ProcessingStage::PrepareMedia, true));
+
+        let retrieved = track.get_stage_status(&ProcessingStage::PrepareMedia);
+        assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap().stage(), ProcessingStage::PrepareMedia);
+    }
 }

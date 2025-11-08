@@ -9,8 +9,16 @@ use crate::processing::{
 
 use super::{
     StageProcessors,
-    batch::{BatchId, BatchStageInput, TrackStageStatus},
+    batch::{BatchId, BatchStageInput},
 };
+
+/// Status update for a specific track's stage
+#[derive(Debug)]
+pub struct TrackStageStatus {
+    pub batch_id: BatchId,
+    pub file_path: PathBuf,
+    pub status: Arc<StageStatus>,
+}
 
 /// Dispatch a single piece of stage work to the appropriate processor
 pub fn handle_stage_dispatch(
