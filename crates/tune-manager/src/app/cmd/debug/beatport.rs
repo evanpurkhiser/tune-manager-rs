@@ -3,7 +3,9 @@ use std::{io, path::PathBuf};
 use id3::Tag;
 use tracing::{error, info};
 
-use crate::beatport::{BeatportCredentials, BeatportSource, try_extract_track_id, try_extract_url};
+use crate::services::beatport::{
+    BeatportCredentials, BeatportSource, try_extract_track_id, try_extract_url,
+};
 
 pub fn run(username: String, password: String, file_path: Option<PathBuf>) -> io::Result<()> {
     tokio::runtime::Builder::new_multi_thread()

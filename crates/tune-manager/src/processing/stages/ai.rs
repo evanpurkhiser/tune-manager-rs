@@ -10,11 +10,11 @@ use tracing::debug;
 use tune_manager_derive::ProcessingError;
 
 use crate::{
-    ai,
     app::config::AiConfig,
     processing::concurrent::{
         self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
     },
+    services::ai,
     track::{Track, TrackRevision},
 };
 

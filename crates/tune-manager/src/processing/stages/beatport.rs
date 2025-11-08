@@ -8,12 +8,12 @@ use tune_manager_derive::ProcessingError;
 
 use crate::{
     app::config::BeatportConfig,
-    beatport::{
-        Authenticated, BeatportApiError, BeatportCredentials, BeatportSource, BeatportTrackInfo,
-        try_extract_track_id, try_extract_url,
-    },
     processing::concurrent::{
         self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
+    },
+    services::beatport::{
+        Authenticated, BeatportApiError, BeatportCredentials, BeatportSource, BeatportTrackInfo,
+        try_extract_track_id, try_extract_url,
     },
     track::TrackRevision,
 };

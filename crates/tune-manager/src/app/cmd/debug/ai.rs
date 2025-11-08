@@ -4,7 +4,7 @@ use async_openai::Client;
 use id3::Tag;
 use tracing::{error, info, warn};
 
-use crate::{ai, file_utils, track::Track};
+use crate::{file_utils, services::ai, track::Track};
 
 pub fn run(path: PathBuf) -> io::Result<()> {
     tokio::runtime::Builder::new_multi_thread()

@@ -18,7 +18,7 @@ use thiserror::Error;
 use crate::{track::Track, track::TrackTags};
 
 mod schema_types {
-    typify::import_types!("src/schema/track-prompt.json");
+    typify::import_types!("src/services/schema/track-prompt.json");
 }
 
 pub type TrackResponse = schema_types::Track;

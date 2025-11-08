@@ -8,7 +8,7 @@ use crate::processing::concurrent::{
     self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
 };
 use crate::{
-    convert, media_hash,
+    services::{convert, media_hash},
     track::{TrackRevision, TrackTags},
 };
 

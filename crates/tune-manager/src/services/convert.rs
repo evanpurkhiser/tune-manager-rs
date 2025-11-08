@@ -65,7 +65,7 @@ mod test {
         io::Error,
     };
 
-    use crate::{media_hash, tests::fixture_path};
+    use crate::{services::media_hash, tests::fixture_path};
 
     use super::to_aiff;
 

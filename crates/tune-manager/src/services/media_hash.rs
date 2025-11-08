@@ -46,7 +46,7 @@ pub fn compute(input_path: impl AsRef<Path>) -> Result<Vec<u8>, MediaHashError> 
 mod tests {
     use std::error::Error;
 
-    use crate::{media_hash::compute, tests::fixture_path};
+    use crate::{services::media_hash::compute, tests::fixture_path};
 
     // Both fixtures have equal audio data
 
