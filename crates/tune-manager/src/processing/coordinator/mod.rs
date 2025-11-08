@@ -1,3 +1,93 @@
+//! Coordinates processing of multiple batches through a multi-stage pipeline.
+//!
+//! # Overview
+//!
+//! The coordinator orchestrates the processing of audio track batches through four sequential
+//! stages: PrepareMedia, Keyfinder, Beatport, and AI. It manages stage dependencies, tracks
+//! progress, and enables concurrent processing of multiple batches and tracks.
+//!
+//! # Processing Pipeline
+//!
+//! Each track flows through these stages with strict dependencies:
+//!
+//! ```text
+//! PrepareMedia
+//!   → Keyfinder (parallel)
+//!   → Beatport
+//!     → AI (batch-level, waits for all tracks)
+//! ```
+//!
+//! - **PrepareMedia**: Converts to supported format (AIFF/MP3), ensures ID3v2.4 tags, computes media hash
+//! - **Keyfinder**: Detects musical key (runs in parallel with Beatport after PrepareMedia)
+//! - **Beatport**: Fetches track metadata from Beatport API if applicable
+//! - **AI**: Cleans and normalizes metadata (processes entire batch together once all tracks complete Beatport)
+//!
+//! # Architecture
+//!
+//! The coordinator uses an event-driven architecture with three main channels:
+//!
+//! 1. **batch_rx**: Receives new batches to process
+//! 2. **stage_dispatch_rx**: Receives stage work to dispatch to processors
+//! 3. **status_update_rx**: Receives status updates from completed stages
+//!
+//! ## Main Loop Flow
+//!
+//! ```text
+//! ProcessingCoordinator Main Event Loop:
+//!
+//! New Batch
+//! → handle_new_batch
+//!   → dispatches PrepareMedia stages
+//!
+//! Stage Runner
+//! → handle_stage_dispatch
+//!   → sends work to processor
+//!   → monitors completion
+//!
+//! Status Update
+//! → handle_track_status
+//!   → updates batch/track state
+//!   → invokes callbacks
+//!   → dispatch_next_stages
+//!     → queues next stage work
+//! ```
+//!
+//! # Modules
+//!
+//! - **[`batch`]**: Data structures for batches and tracks, including state tracking
+//! - **[`callbacks`]**: Event notification system for status updates
+//! - **[`stage_dispatcher`]**: High-level orchestration logic (what stages to run next)
+//! - **[`stage_runner`]**: Low-level processor interface (routes work to processors)
+//! - **[`stage_status`]**: Status update handling (state transitions and revision management)
+//!
+//! # Concurrency
+//!
+//! The coordinator enables several levels of concurrency:
+//!
+//! - **Multiple batches**: Different batches process independently
+//! - **Multiple tracks**: Within a batch, tracks in independent stages (PrepareMedia, Keyfinder, Beatport) run concurrently
+//! - **Parallel stages**: Keyfinder and Beatport run in parallel after PrepareMedia completes
+//! - **Stage processors**: Each stage has its own concurrent processor with configurable limits
+//!
+//! # Example
+//!
+//! ```no_run
+//! use tune_manager::processing::coordinator::ProcessingCoordinator;
+//! use tune_manager::app::config::Config;
+//!
+//! let config = Config::default();
+//! let coordinator = ProcessingCoordinator::start(&config);
+//!
+//! let files = vec![/* audio file paths */];
+//! let batch_handle = coordinator.process_batch(files);
+//!
+//! // Wait for completion
+//! batch_handle.await_completion().await.unwrap();
+//!
+//! // Graceful shutdown
+//! coordinator.shutdown().await;
+//! ```
+
 pub mod batch;
 pub mod callbacks;
 pub mod stage_dispatcher;
@@ -70,6 +160,8 @@ pub struct ProcessingCoordinator {
 
 impl ProcessingCoordinator {
     pub fn start(config: &Config) -> Self {
+        let stage_processors = StageProcessors::boot(config);
+
         let mut batches: HashMap<BatchId, ProcessingBatch> = HashMap::new();
 
         let (stage_dispatch_tx, mut stage_dispatch_rx) = mpsc::unbounded_channel();
@@ -77,9 +169,6 @@ impl ProcessingCoordinator {
         let (batch_sender, mut batch_rx) = mpsc::unbounded_channel();
         let callback_registry = Arc::new(CallbackRegistry::new());
         let cancellation_token = CancellationToken::new();
-
-        // Boot all stage processors
-        let stage_processors = StageProcessors::boot(config);
 
         let token_clone = cancellation_token.clone();
         let cb_registry = callback_registry.clone();
