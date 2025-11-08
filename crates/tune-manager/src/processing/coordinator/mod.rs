@@ -21,6 +21,46 @@ use crate::{
     },
 };
 
+/// Holds all stage processor senders
+pub struct StageProcessors {
+    pub prepare_media_sender: prepare_media::PrepareMediaSender,
+    pub keyfinder_sender: keyfinder::KeyfinderSender,
+    pub beatport_sender: beatport::BeatportSender,
+    pub ai_sender: ai::AiSender,
+}
+
+impl StageProcessors {
+    /// Boot all stage processors and return their senders
+    pub fn boot(config: &Config) -> Self {
+        // Create and start prepare_media processor
+        let prepare_media_processor = prepare_media::new_prepare_media_processor();
+        let prepare_media_sender = prepare_media_processor.get_sender();
+        tokio::spawn(prepare_media_processor.start());
+
+        // Create and start keyfinder processor
+        let keyfinder_processor = keyfinder::new_keyfinder_processor();
+        let keyfinder_sender = keyfinder_processor.get_sender();
+        tokio::spawn(keyfinder_processor.start());
+
+        // Create and start beatport processor
+        let beatport_processor = beatport::new_beatport_processor(config.beatport.as_ref());
+        let beatport_sender = beatport_processor.get_sender();
+        tokio::spawn(beatport_processor.start());
+
+        // Create and start AI processor
+        let ai_processor = ai::new_ai_processor(config.ai.as_ref());
+        let ai_sender = ai_processor.get_sender();
+        tokio::spawn(ai_processor.start());
+
+        Self {
+            prepare_media_sender,
+            keyfinder_sender,
+            beatport_sender,
+            ai_sender,
+        }
+    }
+}
+
 /// Coordinates processing of multiple batches through all stages
 pub struct ProcessingCoordinator {
     batch_sender: mpsc::UnboundedSender<ProcessingBatch>,
@@ -39,22 +79,8 @@ impl ProcessingCoordinator {
         let callback_registry = Arc::new(CallbackRegistry::new());
         let cancellation_token = CancellationToken::new();
 
-        // Create and start all processors
-        let prepare_media_processor = prepare_media::new_prepare_media_processor();
-        let prepare_media_sender = prepare_media_processor.get_sender();
-        tokio::spawn(prepare_media_processor.start());
-
-        let keyfinder_processor = keyfinder::new_keyfinder_processor();
-        let keyfinder_sender = keyfinder_processor.get_sender();
-        tokio::spawn(keyfinder_processor.start());
-
-        let beatport_processor = beatport::new_beatport_processor(config.beatport.as_ref());
-        let beatport_sender = beatport_processor.get_sender();
-        tokio::spawn(beatport_processor.start());
-
-        let ai_processor = ai::new_ai_processor(config.ai.as_ref());
-        let ai_sender = ai_processor.get_sender();
-        tokio::spawn(ai_processor.start());
+        // Boot all stage processors
+        let stage_processors = StageProcessors::boot(config);
 
         let token_clone = cancellation_token.clone();
         let cb_registry = callback_registry.clone();
@@ -71,14 +97,7 @@ impl ProcessingCoordinator {
                     Some(track_status) = status_update_rx.recv() =>
                         handle_track_status(&mut batches, &stage_dispatch_tx, &cb_registry, track_status),
                     Some(input) = stage_dispatch_rx.recv() =>
-                        handle_stage_dispatch(
-                            input,
-                            &prepare_media_sender,
-                            &keyfinder_sender,
-                            &beatport_sender,
-                            &ai_sender,
-                            &status_update_tx,
-                        ),
+                        handle_stage_dispatch(input, &stage_processors, &status_update_tx),
                     else => break,
                 }
 

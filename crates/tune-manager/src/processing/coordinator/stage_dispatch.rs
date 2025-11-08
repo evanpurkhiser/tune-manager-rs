@@ -4,17 +4,17 @@ use tokio::sync::mpsc;
 
 use crate::processing::{
     concurrent::{ItemStatus, SentItemLike},
-    coordinator::batch::{BatchId, BatchStageInput, TrackStageStatus},
-    stages::{StageInput, StageStatus, ai, beatport, keyfinder, prepare_media},
+    coordinator::{
+        StageProcessors,
+        batch::{BatchId, BatchStageInput, TrackStageStatus},
+    },
+    stages::{StageInput, StageStatus},
 };
 
 /// Dispatch a single piece of stage work to the appropriate processor
 pub fn handle_stage_dispatch(
     batch_stage_input: BatchStageInput,
-    prepare_media_sender: &prepare_media::PrepareMediaSender,
-    keyfinder_sender: &keyfinder::KeyfinderSender,
-    beatport_sender: &beatport::BeatportSender,
-    ai_sender: &ai::AiSender,
+    processors: &StageProcessors,
     status_update_sender: &mpsc::UnboundedSender<TrackStageStatus>,
 ) {
     let BatchStageInput {
@@ -24,7 +24,7 @@ pub fn handle_stage_dispatch(
     match stage_input {
         StageInput::PrepareMedia(input) => {
             let status_tx = status_update_sender.clone();
-            let sender = prepare_media_sender.clone();
+            let sender = processors.prepare_media_sender.clone();
             let file_path = input.file_path.clone();
 
             tokio::spawn(async move {
@@ -34,7 +34,7 @@ pub fn handle_stage_dispatch(
         }
         StageInput::Keyfinder(input) => {
             let status_tx = status_update_sender.clone();
-            let sender = keyfinder_sender.clone();
+            let sender = processors.keyfinder_sender.clone();
             let file_path = input.file_path.clone();
 
             tokio::spawn(async move {
@@ -44,7 +44,7 @@ pub fn handle_stage_dispatch(
         }
         StageInput::Beatport(input) => {
             let status_tx = status_update_sender.clone();
-            let sender = beatport_sender.clone();
+            let sender = processors.beatport_sender.clone();
             let file_path = input.file_path.clone();
 
             tokio::spawn(async move {
@@ -54,7 +54,7 @@ pub fn handle_stage_dispatch(
         }
         StageInput::Ai(input) => {
             let status_tx = status_update_sender.clone();
-            let sender = ai_sender.clone();
+            let sender = processors.ai_sender.clone();
 
             let file_paths: Vec<_> = input
                 .tracks
