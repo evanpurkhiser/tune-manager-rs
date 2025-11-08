@@ -73,7 +73,7 @@ pub enum BatchState {
 pub struct ProcessingBatch {
     pub id: BatchId,
 
-    /// Stages that have been dispatched for this batch
+    /// Stages that have been dispatched for this batch (at the [`StageMode::Batch`] level)
     pub stage_dispatched: HashSet<ProcessingStage>,
 
     /// Map of file paths to their processing state

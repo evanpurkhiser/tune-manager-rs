@@ -4,11 +4,12 @@ use tokio::sync::mpsc;
 
 use crate::processing::{
     concurrent::{ItemStatus, SentItemLike},
-    coordinator::{
-        StageProcessors,
-        batch::{BatchId, BatchStageInput, TrackStageStatus},
-    },
     stages::{StageInput, StageStatus},
+};
+
+use super::{
+    StageProcessors,
+    batch::{BatchId, BatchStageInput, TrackStageStatus},
 };
 
 /// Dispatch a single piece of stage work to the appropriate processor

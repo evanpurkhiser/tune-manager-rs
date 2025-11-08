@@ -1,24 +1,23 @@
 pub mod batch;
 pub mod callbacks;
-pub mod stage_dispatch;
-pub mod status_handlers;
+pub mod stage_dispatcher;
+pub mod stage_runner;
+pub mod stage_status;
 
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use tokio::{sync::mpsc, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 
-use crate::{
-    app::config::Config,
-    processing::{
-        coordinator::{
-            batch::{BatchHandle, BatchId, BatchState, ProcessingBatch, handle_new_batch},
-            callbacks::{CallbackHandle, CallbackRegistry, StatusCallback},
-            stage_dispatch::handle_stage_dispatch,
-            status_handlers::handle_track_status,
-        },
-        stages::{ai, beatport, keyfinder, prepare_media},
-    },
+use crate::app::config::Config;
+
+use super::stages::{ai, beatport, keyfinder, prepare_media};
+
+use self::{
+    batch::{BatchHandle, BatchId, BatchState, ProcessingBatch, handle_new_batch},
+    callbacks::{CallbackHandle, CallbackRegistry, StatusCallback},
+    stage_runner::handle_stage_dispatch,
+    stage_status::handle_track_status,
 };
 
 /// Holds all stage processor senders
