@@ -59,7 +59,7 @@ pub fn handle_track_status<F>(
     let revision = extract_revision_from_status(&status, last_revision.as_ref());
 
     // Only dispatch next stages if this stage completed successfully or was skipped
-    let stage_completed = status.is_done();
+    let try_next_stages = status.is_success() || status.is_skipped();
 
     // Handle successful completion - update track tags with new revision
     if let Some(ref revision) = revision {
@@ -82,7 +82,7 @@ pub fn handle_track_status<F>(
     };
     callback_registry.invoke_all(&track_update_event);
 
-    if stage_completed {
+    if try_next_stages {
         dispatch_next_stages(batch);
     }
 

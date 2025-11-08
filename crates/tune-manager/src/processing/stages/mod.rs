@@ -178,10 +178,22 @@ impl StageStatus {
         matches!(status, ItemStatus::Complete(_) | ItemStatus::Skipped(_))
     }
 
+    /// Check if this stage completed successfully
+    pub fn is_success(&self) -> bool {
+        let status = self.item_status();
+        matches!(status, ItemStatus::Complete(Ok(_)))
+    }
+
     /// Check if this stage has failed (completed with an error)
     pub fn has_failed(&self) -> bool {
         let status = self.item_status();
         matches!(status, ItemStatus::Complete(Err(_)))
+    }
+
+    /// Check if this stage was skipped
+    pub fn is_skipped(&self) -> bool {
+        let status = self.item_status();
+        matches!(status, ItemStatus::Skipped(_))
     }
 }
 
