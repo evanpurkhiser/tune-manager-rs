@@ -5,7 +5,7 @@ use tracing::info;
 use crate::{
     app::config::Config,
     file_utils,
-    processing::coordinator::{ProcessingCoordinator, batch::StatusEvent, callbacks::callback},
+    processing::coordinator::{batch::{BatchConfig, StatusEvent}, callbacks::callback, ProcessingCoordinator},
 };
 
 pub async fn process_path(path: PathBuf, config: &Config) -> io::Result<()> {
@@ -61,7 +61,8 @@ pub async fn process_path(path: PathBuf, config: &Config) -> io::Result<()> {
     }));
 
     // Process all files as a single batch
-    let batch_handle = coordinator.process_batch(files);
+    let config = BatchConfig::default();
+    let batch_handle = coordinator.process_batch(files, config);
 
     // Wait for this batch to complete
     batch_handle

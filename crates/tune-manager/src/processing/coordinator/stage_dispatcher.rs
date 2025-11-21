@@ -121,14 +121,15 @@ mod tests {
 
     use super::*;
     use crate::{
-        processing::stages::{ProcessingStage, test_helpers::*},
+        processing::{coordinator::batch::BatchConfig, stages::{ProcessingStage, test_helpers::*}},
         track::TrackRevision,
     };
 
     // Helper to create a batch with a single track
     fn make_batch_with_track(file_path: PathBuf) -> ProcessingBatch {
         let (tx, _rx) = oneshot::channel();
-        ProcessingBatch::new(vec![file_path], tx)
+        let config = BatchConfig::dry();
+        ProcessingBatch::new(vec![file_path], config, tx)
     }
 
     // Helper to mark a stage as complete and dispatched
@@ -290,7 +291,8 @@ mod tests {
         let file1 = PathBuf::from("/test/track1.mp3");
         let file2 = PathBuf::from("/test/track2.mp3");
         let (tx, _rx) = oneshot::channel();
-        let mut batch = ProcessingBatch::new(vec![file1.clone(), file2.clone()], tx);
+        let config = BatchConfig::dry();
+        let mut batch = ProcessingBatch::new(vec![file1.clone(), file2.clone()], config, tx);
         let (stage_dispatch_tx, mut stage_dispatch_rx) = mpsc::unbounded_channel();
 
         // Track 1: PrepareMedia complete, ready for next stages
@@ -334,7 +336,8 @@ mod tests {
         let file2 = temp_file2.path().to_path_buf();
 
         let (tx, _rx) = oneshot::channel();
-        let mut batch = ProcessingBatch::new(vec![file1.clone(), file2.clone()], tx);
+        let config = BatchConfig::dry();
+        let mut batch = ProcessingBatch::new(vec![file1.clone(), file2.clone()], config, tx);
         let (stage_dispatch_tx, mut stage_dispatch_rx) = mpsc::unbounded_channel();
 
         // Track 1: Complete all stages up to and including Beatport (ready for AI)

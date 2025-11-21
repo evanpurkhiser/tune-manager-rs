@@ -99,7 +99,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::{sync::mpsc, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 
-use crate::app::config::Config;
+use crate::{app::config::Config, processing::coordinator::batch::BatchConfig};
 
 use super::stages::{ai, beatport, keyfinder, prepare_media};
 
@@ -216,9 +216,9 @@ impl ProcessingCoordinator {
     }
 
     /// Create and process a batch of files
-    pub fn process_batch(&self, files: Vec<PathBuf>) -> BatchHandle {
+    pub fn process_batch(&self, files: Vec<PathBuf>, config: BatchConfig) -> BatchHandle {
         let (completion_tx, completion_rx) = tokio::sync::oneshot::channel();
-        let batch = ProcessingBatch::new(files, completion_tx);
+        let batch = ProcessingBatch::new(files, config, completion_tx);
         let batch_id = batch.id.clone();
 
         let _ = self.batch_sender.send(batch);

@@ -36,6 +36,80 @@ impl std::fmt::Display for BatchId {
 }
 
 #[derive(Debug)]
+pub struct BatchConfig {
+    /// Should each completed stage of the batch be persisted to the file. If set to false each
+    /// file's Tag object will not be persisted.
+    persist: bool,
+
+    /// Should completed stages be read from the Tag and skipped
+    skip_complete: bool,
+}
+
+impl Default for BatchConfig {
+    fn default() -> Self {
+        Self {
+            persist: true,
+            skip_complete: true,
+        }
+    }
+}
+
+impl BatchConfig {
+    /// Create a new builder for BatchConfig
+    pub fn builder() -> BatchConfigBuilder {
+        BatchConfigBuilder::default()
+    }
+
+    /// Create a dry-run config that doesn't persist changes or skip completed stages
+    ///
+    /// Useful for tests where you want a clean processing run without side effects
+    pub fn dry() -> Self {
+        Self {
+            persist: false,
+            skip_complete: false,
+        }
+    }
+}
+
+/// Builder for BatchConfig
+#[derive(Debug)]
+pub struct BatchConfigBuilder {
+    persist: bool,
+    skip_complete: bool,
+}
+
+impl Default for BatchConfigBuilder {
+    fn default() -> Self {
+        Self {
+            persist: true,
+            skip_complete: true,
+        }
+    }
+}
+
+impl BatchConfigBuilder {
+    /// Set whether to persist changes to files
+    pub fn persist(mut self, persist: bool) -> Self {
+        self.persist = persist;
+        self
+    }
+
+    /// Set whether to skip completed stages
+    pub fn skip_complete(mut self, skip_complete: bool) -> Self {
+        self.skip_complete = skip_complete;
+        self
+    }
+
+    /// Build the BatchConfig
+    pub fn build(self) -> BatchConfig {
+        BatchConfig {
+            persist: self.persist,
+            skip_complete: self.skip_complete,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct BatchStageInput {
     pub batch_id: BatchId,
     pub stage_input: StageInput,
@@ -77,11 +151,18 @@ pub struct ProcessingBatch {
 
     /// Current state of the batch
     pub state: BatchState,
+
+    /// Configures how the batch should be processed
+    pub config: BatchConfig,
 }
 
 impl ProcessingBatch {
     /// Create a new ProcessingBatch with the given files and completion sender
-    pub fn new(files: Vec<PathBuf>, completion_tx: oneshot::Sender<()>) -> Self {
+    pub fn new(
+        files: Vec<PathBuf>,
+        config: BatchConfig,
+        completion_tx: oneshot::Sender<()>,
+    ) -> Self {
         let mut tracks = HashMap::new();
         for file_path in files {
             let track_state = TrackProcessingState::new(file_path.clone());
@@ -93,6 +174,7 @@ impl ProcessingBatch {
             stage_dispatched: HashSet::new(),
             tracks,
             state: BatchState::Processing(completion_tx),
+            config,
         }
     }
 
@@ -231,7 +313,7 @@ pub fn handle_new_batch(
 mod tests {
     use super::*;
     use crate::processing::concurrent::ItemStatus;
-    use crate::processing::stages::{prepare_media, test_helpers::*, ProcessingStage, StageStatus};
+    use crate::processing::stages::{ProcessingStage, StageStatus, prepare_media, test_helpers::*};
     use std::path::PathBuf;
 
     #[test]
@@ -315,7 +397,8 @@ mod tests {
     fn test_batch_is_complete_when_all_stages_done() {
         let (tx, _rx) = oneshot::channel();
         let files = vec![PathBuf::from("/test/track1.mp3")];
-        let mut batch = ProcessingBatch::new(files, tx);
+        let config = BatchConfig::dry();
+        let mut batch = ProcessingBatch::new(files, config, tx);
 
         assert!(!batch.is_complete());
 
@@ -336,7 +419,8 @@ mod tests {
     fn test_batch_is_not_complete_if_one_stage_missing() {
         let (tx, _rx) = oneshot::channel();
         let files = vec![PathBuf::from("/test/track1.mp3")];
-        let mut batch = ProcessingBatch::new(files, tx);
+        let config = BatchConfig::dry();
+        let mut batch = ProcessingBatch::new(files, config, tx);
 
         let track = batch
             .tracks
@@ -358,7 +442,8 @@ mod tests {
             PathBuf::from("/test/track1.mp3"),
             PathBuf::from("/test/track2.mp3"),
         ];
-        let mut batch = ProcessingBatch::new(files, tx);
+        let config = BatchConfig::dry();
+        let mut batch = ProcessingBatch::new(files, config, tx);
 
         let track1 = batch
             .tracks
@@ -404,7 +489,8 @@ mod tests {
     fn test_batch_completes_when_track_has_failed_stage() {
         let (tx, _rx) = oneshot::channel();
         let files = vec![PathBuf::from("/test/track1.mp3")];
-        let mut batch = ProcessingBatch::new(files, tx);
+        let config = BatchConfig::dry();
+        let mut batch = ProcessingBatch::new(files, config, tx);
 
         assert!(!batch.is_complete());
 
@@ -433,7 +519,8 @@ mod tests {
             PathBuf::from("/test/track1.mp3"),
             PathBuf::from("/test/track2.mp3"),
         ];
-        let mut batch = ProcessingBatch::new(files, tx);
+        let config = BatchConfig::dry();
+        let mut batch = ProcessingBatch::new(files, config, tx);
 
         // Track 1 fails at PrepareMedia
         let track1 = batch
