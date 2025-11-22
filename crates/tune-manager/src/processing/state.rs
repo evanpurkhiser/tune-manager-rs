@@ -1,13 +1,32 @@
 use std::{borrow::Borrow, collections::HashSet};
 
+use chrono::{DateTime, Utc};
 use id3::{Tag, TagLike, frame};
 use serde::{Deserialize, Serialize};
 
 use super::stages::ProcessingStage;
-use crate::track::TrackRevision;
+use crate::track::TrackTags;
 
 const GEOB_STAGE_FILENAME: &str = "tune-manager-processing-state.json";
 const GEOB_REVISIONS_FILENAME: &str = "tune-manager-track-revisions.json";
+
+/// A TrackRevision represents a historic state of track tags
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TrackRevision {
+    /// Timestamp of the track revision
+    pub ts: DateTime<Utc>,
+    pub tags: TrackTags,
+}
+
+impl TrackRevision {
+    /// Creates a new TrackRevision with the current timestamp
+    pub fn new(tags: TrackTags) -> Self {
+        Self {
+            ts: Utc::now(),
+            tags,
+        }
+    }
+}
 
 /// Represents the processing state stored in the GEOB frame
 #[derive(Debug, Serialize, Deserialize, Default)]

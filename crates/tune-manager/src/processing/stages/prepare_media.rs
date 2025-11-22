@@ -4,12 +4,16 @@ use id3::{self, Tag, TagLike, Version, frame};
 use thiserror::Error;
 use tune_manager_derive::ProcessingError;
 
-use crate::processing::concurrent::{
-    self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
-};
 use crate::{
+    processing::{
+        concurrent::{
+            self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
+        },
+        stages::ProducesRevision,
+        state::TrackRevision,
+    },
     services::{convert, media_hash},
-    track::{TrackRevision, TrackTags},
+    track::TrackTags,
 };
 
 const MEDIA_HASH_OWNER: &str = "tune-manager-rs";
@@ -167,6 +171,8 @@ pub fn new_prepare_media_processor() -> PrepareMediaProcessor {
     )
 }
 
-pub fn produce_revision(tag: &Tag) -> TrackRevision {
-    TrackRevision::new(TrackTags::from(tag))
+impl ProducesRevision for PrepareMediaResult {
+    fn produce_revision(&self, _last_revision: Option<&TrackRevision>) -> Option<TrackRevision> {
+        Some(TrackRevision::new(TrackTags::from(&self.tag)))
+    }
 }

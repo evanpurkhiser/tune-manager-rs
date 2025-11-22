@@ -2,10 +2,13 @@ use std::path::PathBuf;
 
 use crate::{
     keyfinder::{self, KeyfinderError},
-    processing::concurrent::{
-        self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
+    processing::{
+        concurrent::{
+            self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
+        },
+        stages::ProducesRevision,
+        state::TrackRevision,
     },
-    track::TrackRevision,
 };
 
 /// Maximum number of concurrent keyfinder processes allowed
@@ -50,10 +53,13 @@ pub fn new_keyfinder_processor() -> KeyfinderProcessor {
     )
 }
 
-pub fn produce_revision(last_revision: &TrackRevision, result: &KeyfinderResult) -> TrackRevision {
-    let mut revision = last_revision.clone();
-    if let Some(ref key) = result.detected_key {
-        revision.tags.key = Some(key.clone());
+impl ProducesRevision for KeyfinderResult {
+    fn produce_revision(&self, last_revision: Option<&TrackRevision>) -> Option<TrackRevision> {
+        let last_revision = last_revision?;
+        let mut revision = last_revision.clone();
+        if let Some(ref key) = self.detected_key {
+            revision.tags.key = Some(key.clone());
+        }
+        Some(TrackRevision::new(revision.tags))
     }
-    TrackRevision::new(revision.tags)
 }

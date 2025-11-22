@@ -1,12 +1,18 @@
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString};
 
-use crate::processing::concurrent::ItemStatus;
+use crate::processing::{concurrent::ItemStatus, state::TrackRevision};
 
 pub mod ai;
 pub mod beatport;
 pub mod keyfinder;
 pub mod prepare_media;
+
+/// Trait for types that can produce a TrackRevision from their results
+pub trait ProducesRevision {
+    /// Produces a revision, optionally using a previous revision for context
+    fn produce_revision(&self, last_revision: Option<&TrackRevision>) -> Option<TrackRevision>;
+}
 
 /// Represents the different stages of the processing pipeline
 #[derive(
@@ -195,6 +201,27 @@ impl StageStatus {
         let status = self.item_status();
         matches!(status, ItemStatus::Skipped(_))
     }
+
+    /// Produces an Option that implements [`ProducesRevision`]. Will produce None if the stage
+    /// status is not [`ItemStatus::Complete`].
+    fn as_successful_result(&self) -> Option<&dyn ProducesRevision> {
+        match self {
+            StageStatus::PrepareMedia(ItemStatus::Complete(Ok(result))) => Some(result),
+            StageStatus::Keyfinder(ItemStatus::Complete(Ok(result))) => Some(result),
+            StageStatus::Beatport(ItemStatus::Complete(Ok(result))) => Some(result),
+            StageStatus::Ai(ItemStatus::Complete(Ok(result))) => Some(result),
+            StageStatus::PrepareMedia(_)
+            | StageStatus::Keyfinder(_)
+            | StageStatus::Beatport(_)
+            | StageStatus::Ai(_) => None,
+        }
+    }
+}
+
+impl ProducesRevision for StageStatus {
+    fn produce_revision(&self, last_revision: Option<&TrackRevision>) -> Option<TrackRevision> {
+        self.as_successful_result()?.produce_revision(last_revision)
+    }
 }
 
 #[cfg(test)]
@@ -242,5 +269,78 @@ pub mod test_helpers {
             }
         };
         Arc::new(status)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use id3::{Tag, TagLike};
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_produce_revision_from_prepare_media() {
+        let mut tag = Tag::new();
+        tag.set_title("Test Track");
+
+        let result = prepare_media::PrepareMediaResult {
+            file_path: PathBuf::from("/test/track.mp3"),
+            tag: tag.clone(),
+            media_hash: vec![1, 2, 3],
+        };
+
+        // PrepareMedia doesn't need previous revision
+        let status = StageStatus::PrepareMedia(ItemStatus::Complete(Ok(result)));
+        let revision = status.produce_revision(None);
+
+        assert!(revision.is_some());
+    }
+
+    #[test]
+    fn test_produce_revision_from_keyfinder_with_previous() {
+        let prev_revision = TrackRevision::new(Default::default());
+
+        let result = keyfinder::KeyfinderResult {
+            detected_key: Some("Am".to_string()),
+        };
+
+        let status = StageStatus::Keyfinder(ItemStatus::Complete(Ok(result)));
+        let revision = status.produce_revision(Some(&prev_revision));
+
+        assert!(revision.is_some());
+    }
+
+    #[test]
+    fn test_produce_revision_from_keyfinder_without_previous() {
+        let result = keyfinder::KeyfinderResult {
+            detected_key: Some("Am".to_string()),
+        };
+
+        let status = StageStatus::Keyfinder(ItemStatus::Complete(Ok(result)));
+        let revision = status.produce_revision(None);
+
+        // Should return None because Keyfinder needs previous revision
+        assert!(revision.is_none());
+    }
+
+    #[test]
+    fn test_produce_revision_from_failed_stage() {
+        use prepare_media::{ContainerError, PrepareMediaError};
+
+        let error = PrepareMediaError::Container(ContainerError::BadPath);
+        let status = StageStatus::PrepareMedia(ItemStatus::Complete(Err(error)));
+        let revision = status.produce_revision(None);
+
+        // Failed stages should not produce revisions
+        assert!(revision.is_none());
+    }
+
+    #[test]
+    fn test_produce_revision_from_running_stage() {
+        let status = StageStatus::PrepareMedia(ItemStatus::Running);
+        let revision = status.produce_revision(None);
+
+        // Running stages should not produce revisions
+        assert!(revision.is_none());
     }
 }

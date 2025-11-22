@@ -9,12 +9,10 @@ use id3::Tag;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
-use crate::{
-    processing::{
-        coordinator::stage_dispatcher::dispatch_next_stages,
-        stages::{ProcessingStage, StageInput, StageStatus},
-    },
-    track::TrackRevision,
+use crate::processing::{
+    coordinator::stage_dispatcher::dispatch_next_stages,
+    stages::{ProcessingStage, StageInput, StageStatus},
+    state::TrackRevision,
 };
 
 use super::callbacks::{BatchFilteredCallback, CallbackHandle, CallbackRegistry, StatusCallback};

@@ -120,9 +120,10 @@ mod tests {
     use tokio::sync::oneshot;
 
     use super::*;
-    use crate::{
-        processing::{coordinator::batch::BatchConfig, stages::{ProcessingStage, test_helpers::*}},
-        track::TrackRevision,
+    use crate::processing::{
+        coordinator::batch::BatchConfig,
+        stages::{ProcessingStage, test_helpers::*},
+        state::TrackRevision,
     };
 
     // Helper to create a batch with a single track

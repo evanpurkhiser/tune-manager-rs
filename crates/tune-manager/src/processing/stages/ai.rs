@@ -11,11 +11,15 @@ use tune_manager_derive::ProcessingError;
 
 use crate::{
     app::config::AiConfig,
-    processing::concurrent::{
-        self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
+    processing::{
+        concurrent::{
+            self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
+        },
+        stages::ProducesRevision,
+        state::TrackRevision,
     },
     services::ai,
-    track::{Track, TrackRevision},
+    track::Track,
 };
 
 /// Maximum number of concurrent AI API requests allowed
@@ -94,12 +98,15 @@ async fn process_ai_input(
     Ok(AiResult { responses })
 }
 
-pub fn produce_revision(last_revision: &TrackRevision, result: &AiResult) -> Option<TrackRevision> {
-    let media_hash = last_revision.tags.media_hash.as_ref()?;
-    let track_response = result.responses.get(media_hash)?;
+impl ProducesRevision for AiResult {
+    fn produce_revision(&self, last_revision: Option<&TrackRevision>) -> Option<TrackRevision> {
+        let last_revision = last_revision?;
+        let media_hash = last_revision.tags.media_hash.as_ref()?;
+        let track_response = self.responses.get(media_hash)?;
 
-    let mut revision = last_revision.clone();
-    track_response.update_track_tags(&mut revision.tags);
+        let mut revision = last_revision.clone();
+        track_response.update_track_tags(&mut revision.tags);
 
-    Some(TrackRevision::new(revision.tags))
+        Some(TrackRevision::new(revision.tags))
+    }
 }

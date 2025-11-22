@@ -4,7 +4,6 @@ use std::{
     vec,
 };
 
-use chrono::{DateTime, Utc};
 use id3::Tag;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -46,24 +45,6 @@ impl From<PathBuf> for TrackMetadaata {
                 .duration_since(std::time::SystemTime::UNIX_EPOCH)
                 .unwrap()
                 .as_secs(),
-        }
-    }
-}
-
-/// A TrackRevision represents a historic state of track tags
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TrackRevision {
-    /// Timestamp of the track revision
-    pub ts: DateTime<Utc>,
-    pub tags: TrackTags,
-}
-
-impl TrackRevision {
-    /// Creates a new TrackRevision with the current timestamp
-    pub fn new(tags: TrackTags) -> Self {
-        Self {
-            ts: Utc::now(),
-            tags,
         }
     }
 }

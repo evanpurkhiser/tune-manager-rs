@@ -2,17 +2,14 @@ use std::{mem::replace, sync::Arc};
 
 use tracing::error;
 
-use crate::{
-    processing::{
-        concurrent::ItemStatus,
-        stages::{StageStatus, ai, beatport, keyfinder, prepare_media},
-        state,
-    },
-    track::TrackRevision,
+use crate::processing::{
+    concurrent::ItemStatus,
+    stages::{StageStatus, ProducesRevision},
+    state,
 };
 
 use super::{
-    batch::{Batches, BatchState, ProcessingBatch, StatusEvent},
+    batch::{BatchState, Batches, ProcessingBatch, StatusEvent},
     callbacks::CallbackRegistry,
     stage_runner::TrackStageStatus,
 };
@@ -56,7 +53,7 @@ pub fn handle_track_status<F>(
     let last_revision = track_state.tag.as_ref().and_then(state::get_last_revision);
 
     // Extract revision from the completed stage
-    let revision = extract_revision_from_status(&status, last_revision.as_ref());
+    let revision = status.produce_revision(last_revision.as_ref());
 
     // Only dispatch next stages if this stage completed successfully or was skipped
     let try_next_stages = status.is_success() || status.is_skipped();
@@ -97,27 +94,5 @@ pub fn handle_track_status<F>(
         // Emit batch completed event
         let batch_completed_event = StatusEvent::BatchCompleted { batch };
         callback_registry.invoke_all(&batch_completed_event);
-    }
-}
-
-/// Extract a TrackRevision from a completed stage status, with previous revision for stages that need it
-fn extract_revision_from_status(
-    status: &StageStatus,
-    last_revision: Option<&TrackRevision>,
-) -> Option<TrackRevision> {
-    match status {
-        StageStatus::PrepareMedia(ItemStatus::Complete(Ok(result))) => {
-            Some(prepare_media::produce_revision(&result.tag))
-        }
-        StageStatus::Keyfinder(ItemStatus::Complete(Ok(result))) => {
-            last_revision.map(|prev| keyfinder::produce_revision(prev, result))
-        }
-        StageStatus::Beatport(ItemStatus::Complete(Ok(result))) => {
-            last_revision.map(|prev| beatport::produce_revision(prev, result))
-        }
-        StageStatus::Ai(ItemStatus::Complete(Ok(result))) => {
-            last_revision.and_then(|prev| ai::produce_revision(prev, result))
-        }
-        _ => None, // Not completed or failed
     }
 }

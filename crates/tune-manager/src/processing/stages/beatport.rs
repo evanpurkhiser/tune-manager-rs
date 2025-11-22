@@ -8,14 +8,17 @@ use tune_manager_derive::ProcessingError;
 
 use crate::{
     app::config::BeatportConfig,
-    processing::concurrent::{
-        self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
+    processing::{
+        concurrent::{
+            self, ConcurrentProcessor, ConcurrentSender, SentItem, concurrent_processor_with_limit,
+        },
+        stages::ProducesRevision,
+        state::TrackRevision,
     },
     services::beatport::{
         Authenticated, BeatportApiError, BeatportCredentials, BeatportSource, BeatportTrackInfo,
         try_extract_track_id, try_extract_url,
     },
-    track::TrackRevision,
 };
 
 /// Maximum number of concurrent beatport API requests allowed
@@ -130,10 +133,13 @@ async fn process_beatport_input(
     })
 }
 
-pub fn produce_revision(last_revision: &TrackRevision, result: &BeatportResult) -> TrackRevision {
-    let mut revision = last_revision.clone();
-    if let Some(ref track_info) = result.track_info {
-        track_info.update_track_tags(&mut revision.tags);
+impl ProducesRevision for BeatportResult {
+    fn produce_revision(&self, last_revision: Option<&TrackRevision>) -> Option<TrackRevision> {
+        let last_revision = last_revision?;
+        let mut revision = last_revision.clone();
+        if let Some(ref track_info) = self.track_info {
+            track_info.update_track_tags(&mut revision.tags);
+        }
+        Some(TrackRevision::new(revision.tags))
     }
-    TrackRevision::new(revision.tags)
 }
