@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem::replace, sync::Arc};
+use std::{mem::replace, sync::Arc};
 
 use tracing::error;
 
@@ -12,14 +12,14 @@ use crate::{
 };
 
 use super::{
-    batch::{BatchId, BatchState, ProcessingBatch, StatusEvent},
+    batch::{Batches, BatchState, ProcessingBatch, StatusEvent},
     callbacks::CallbackRegistry,
     stage_runner::TrackStageStatus,
 };
 
 /// Handle a status update from a processor
 pub fn handle_track_status<F>(
-    batches: &mut HashMap<BatchId, ProcessingBatch>,
+    batches: &mut Batches,
     dispatch_next_stages: F,
     callback_registry: &Arc<CallbackRegistry>,
     track_status: TrackStageStatus,

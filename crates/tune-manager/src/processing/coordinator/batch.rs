@@ -296,16 +296,57 @@ impl BatchHandle {
     }
 }
 
+/// Collection of batches being processed
+#[derive(Debug, Default)]
+pub struct Batches {
+    inner: HashMap<BatchId, ProcessingBatch>,
+}
+
+impl Batches {
+    /// Create a new empty Batches collection
+    pub fn new() -> Self {
+        Self {
+            inner: HashMap::new(),
+        }
+    }
+
+    /// Add a batch to the collection
+    pub fn add(&mut self, batch: ProcessingBatch) -> BatchId {
+        let batch_id = batch.id.clone();
+        self.inner.insert(batch_id.clone(), batch);
+        batch_id
+    }
+
+    /// Get an immutable reference to a batch by ID
+    pub fn get(&self, batch_id: &BatchId) -> Option<&ProcessingBatch> {
+        self.inner.get(batch_id)
+    }
+
+    /// Get a mutable reference to a batch by ID
+    pub fn get_mut(&mut self, batch_id: &BatchId) -> Option<&mut ProcessingBatch> {
+        self.inner.get_mut(batch_id)
+    }
+
+    /// Check if the collection is empty
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
+    /// Get an iterator over all batch values
+    pub fn values(&self) -> impl Iterator<Item = &ProcessingBatch> {
+        self.inner.values()
+    }
+}
+
 /// Stores and dispatches a new ProcessingBatch
+///
+/// This is a convenience function that combines adding a batch and dispatching its initial stages.
 pub fn handle_new_batch(
-    batches: &mut HashMap<BatchId, ProcessingBatch>,
+    batches: &mut Batches,
     stage_dispatch_tx: &mpsc::UnboundedSender<BatchStageInput>,
     batch: ProcessingBatch,
 ) {
-    let batch_id = batch.id.clone();
-
-    // Register the batch and dispatch the PrepareMedia stage for all tracks
-    batches.insert(batch_id.clone(), batch);
+    let batch_id = batches.add(batch);
     dispatch_next_stages(batches.get_mut(&batch_id).unwrap(), stage_dispatch_tx);
 }
 

@@ -94,17 +94,17 @@ pub mod stage_dispatcher;
 pub mod stage_runner;
 pub mod stage_status;
 
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
 use tokio::{sync::mpsc, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 
-use crate::{app::config::Config, processing::coordinator::batch::BatchConfig};
+use crate::app::config::Config;
 
 use super::stages::{ai, beatport, keyfinder, prepare_media};
 
 use self::{
-    batch::{BatchHandle, BatchId, BatchStageInput, BatchState, ProcessingBatch, handle_new_batch},
+    batch::{Batches, BatchConfig, BatchHandle, BatchStageInput, BatchState, ProcessingBatch, handle_new_batch},
     callbacks::{CallbackHandle, CallbackRegistry, StatusCallback},
     stage_dispatcher::dispatch_next_stages,
     stage_runner::handle_stage_dispatch,
@@ -170,7 +170,7 @@ impl ProcessingCoordinator {
     pub fn start(config: &Config) -> Self {
         let stage_processors = StageProcessors::boot(config);
 
-        let mut batches: HashMap<BatchId, ProcessingBatch> = HashMap::new();
+        let mut batches = Batches::new();
 
         let (stage_dispatch_tx, mut stage_dispatch_rx) = mpsc::unbounded_channel();
         let (status_update_tx, mut status_update_rx) = mpsc::unbounded_channel();
