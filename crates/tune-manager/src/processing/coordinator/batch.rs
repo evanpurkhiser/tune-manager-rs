@@ -39,17 +39,18 @@ impl std::fmt::Display for BatchId {
 pub struct BatchConfig {
     /// Should each completed stage of the batch be persisted to the file. If set to false each
     /// file's Tag object will not be persisted.
-    persist: bool,
+    pub persist: bool,
 
-    /// Should completed stages be read from the Tag and skipped
-    skip_complete: bool,
+    /// Should we skip reading the completed stages stored in the file and full reprocess the
+    /// track.
+    pub reprocess: bool,
 }
 
 impl Default for BatchConfig {
     fn default() -> Self {
         Self {
             persist: true,
-            skip_complete: true,
+            reprocess: true,
         }
     }
 }
@@ -66,7 +67,7 @@ impl BatchConfig {
     pub fn dry() -> Self {
         Self {
             persist: false,
-            skip_complete: false,
+            reprocess: true,
         }
     }
 }
@@ -75,14 +76,14 @@ impl BatchConfig {
 #[derive(Debug)]
 pub struct BatchConfigBuilder {
     persist: bool,
-    skip_complete: bool,
+    reprocess: bool,
 }
 
 impl Default for BatchConfigBuilder {
     fn default() -> Self {
         Self {
             persist: true,
-            skip_complete: true,
+            reprocess: false,
         }
     }
 }
@@ -94,9 +95,9 @@ impl BatchConfigBuilder {
         self
     }
 
-    /// Set whether to skip completed stages
-    pub fn skip_complete(mut self, skip_complete: bool) -> Self {
-        self.skip_complete = skip_complete;
+    /// Set whether to reprocess the track, regardless of what stages were completed previously
+    pub fn reprocess(mut self, reprocess: bool) -> Self {
+        self.reprocess = reprocess;
         self
     }
 
@@ -104,7 +105,7 @@ impl BatchConfigBuilder {
     pub fn build(self) -> BatchConfig {
         BatchConfig {
             persist: self.persist,
-            skip_complete: self.skip_complete,
+            reprocess: self.reprocess,
         }
     }
 }
