@@ -50,6 +50,16 @@ impl ProcessingStage {
             ProcessingStage::Ai => StageMode::Batch,
         }
     }
+
+    /// Produce a StageStatus marked as skipped with the given reason for this processing stage.
+    pub fn as_skipped_status(&self, reason: String) -> StageStatus {
+        match self {
+            ProcessingStage::PrepareMedia => StageStatus::PrepareMedia(ItemStatus::Skipped(reason)),
+            ProcessingStage::Keyfinder => StageStatus::Keyfinder(ItemStatus::Skipped(reason)),
+            ProcessingStage::Beatport => StageStatus::Beatport(ItemStatus::Skipped(reason)),
+            ProcessingStage::Ai => StageStatus::Ai(ItemStatus::Skipped(reason)),
+        }
+    }
 }
 
 #[derive(Debug)]

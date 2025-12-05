@@ -67,12 +67,21 @@ pub fn handle_track_status<F>(
     // Only dispatch next stages if this stage completed successfully or was skipped
     let try_next_stages = status.is_success() || status.is_skipped();
 
-    // Handle successful completion - update track tags with new revision
-    if let Some(ref revision) = revision {
-        track_state.tag.as_mut().map(|tag| {
+    if let Some(tag) = track_state.tag.as_mut() {
+        // Mark the stage as complete in the tag if it succeeded
+        if status.is_success() {
+            state::mark_stage_complete(tag, status.stage()).expect("stage added");
+        }
+
+        // Handle successful completion - update track tags with new revision
+        if let Some(ref revision) = revision {
             state::append_track_revision(tag, revision.clone()).expect("revision added");
-            tag.write_to_path(file_path.clone(), id3::Version::Id3v24)
-        });
+        }
+
+        // Only write to disk if persistence is enabled
+        if batch.config.persist {
+            let _ = tag.write_to_path(file_path.clone(), id3::Version::Id3v24);
+        }
     }
 
     track_state.set_stage_status(status.clone());
@@ -647,5 +656,44 @@ mod tests {
         assert!(matches!(events[2], ItemStatus::Skipped(_)));
         assert!(matches!(events[3], ItemStatus::Complete(Ok(_))));
         assert!(matches!(events[4], ItemStatus::Complete(Err(_))));
+    }
+
+    #[test]
+    fn test_revision_persistence() {
+        use crate::tests::make_temp_fixture;
+
+        // Create temp directory with a copy of the fixture file
+        // The temp directory will clean up all files (including any conversions) when dropped
+        let (_temp_dir, file_path) = make_temp_fixture("example.mp3");
+
+        // Set up initial tag with a previous revision
+        let mut tag = Tag::new();
+        let prev_revision = TrackRevision::new(Default::default());
+        state::append_track_revision(&mut tag, prev_revision).unwrap();
+
+        // Create test context with persistence enabled
+        let mut ctx = TestContext::builder()
+            .with_file(file_path.clone())
+            .with_tag(tag)
+            .with_persist(true)
+            .build();
+
+        // Complete Keyfinder stage which produces a revision
+        let result = keyfinder::KeyfinderResult {
+            detected_key: Some("Am".to_string()),
+        };
+        let status = StageStatus::Keyfinder(ItemStatus::Complete(Ok(result)));
+
+        ctx.handle_status(status);
+
+        // Verify revision was written to the in-memory tag
+        let tag = ctx.get_track_tag();
+        let latest = state::get_last_revision(tag).unwrap();
+        assert_eq!(latest.tags.key, Some("Am".to_string()));
+
+        // Now verify the tag was actually persisted to the file by reading it back
+        let persisted_tag = Tag::read_from_path(&file_path).unwrap();
+        let persisted_latest = state::get_last_revision(&persisted_tag).unwrap();
+        assert_eq!(persisted_latest.tags.key, Some("Am".to_string()));
     }
 }
