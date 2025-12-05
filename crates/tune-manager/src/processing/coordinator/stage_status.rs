@@ -171,12 +171,12 @@ mod tests {
         }
 
         /// Handle a status update using empty dispatcher
-        fn handle_status(&mut self, status: Arc<StageStatus>) {
+        fn handle_status(&mut self, status: impl Into<Arc<StageStatus>>) {
             self.handle_status_with(status, |_| {});
         }
 
         /// Handle a status update with a custom dispatcher
-        fn handle_status_with<F>(&mut self, status: Arc<StageStatus>, dispatch_fn: F)
+        fn handle_status_with<F>(&mut self, status: impl Into<Arc<StageStatus>>, dispatch_fn: F)
         where
             F: FnOnce(&mut ProcessingBatch),
         {
@@ -187,7 +187,7 @@ mod tests {
                 TrackStageStatus {
                     batch_id: self.batch_id.clone(),
                     file_path: self.file_path.clone(),
-                    status,
+                    status: status.into(),
                 },
             );
         }
@@ -218,7 +218,10 @@ mod tests {
         let mut ctx = TestContext::new();
         let (mock_dispatch, mut dispatch_rx) = make_mock_dispatcher();
 
-        ctx.handle_status_with(make_status_completed(ProcessingStage::PrepareMedia), mock_dispatch);
+        ctx.handle_status_with(
+            make_status_completed(ProcessingStage::PrepareMedia),
+            mock_dispatch,
+        );
 
         // Verify dispatch was called for successful completion
         assert!(dispatch_rx.try_recv().is_ok());
@@ -247,9 +250,7 @@ mod tests {
             media_hash: vec![1, 2, 3],
         };
 
-        ctx.handle_status(Arc::new(StageStatus::PrepareMedia(ItemStatus::Complete(Ok(
-            result,
-        )))));
+        ctx.handle_status(StageStatus::PrepareMedia(ItemStatus::Complete(Ok(result))));
 
         // Verify file_path was updated to converted path
         let track = ctx.get_track();
@@ -269,9 +270,7 @@ mod tests {
         let mut ctx = TestContext::new();
         let (mock_dispatch, mut dispatch_rx) = make_mock_dispatcher();
 
-        let status = Arc::new(StageStatus::Keyfinder(ItemStatus::Skipped(
-            "Already has key".to_string(),
-        )));
+        let status = StageStatus::Keyfinder(ItemStatus::Skipped("Already has key".to_string()));
 
         ctx.handle_status_with(status, mock_dispatch);
 
@@ -296,7 +295,7 @@ mod tests {
         let (mock_dispatch, mut dispatch_rx) = make_mock_dispatcher();
 
         let error = PrepareMediaError::Container(ContainerError::BadPath);
-        let status = Arc::new(StageStatus::PrepareMedia(ItemStatus::Complete(Err(error))));
+        let status = StageStatus::PrepareMedia(ItemStatus::Complete(Err(error)));
 
         ctx.handle_status_with(status, mock_dispatch);
 
@@ -442,9 +441,9 @@ mod tests {
             media_hash: vec![1, 2, 3],
         };
 
-        ctx.handle_status(Arc::new(StageStatus::PrepareMedia(ItemStatus::Complete(Ok(
+        ctx.handle_status(StageStatus::PrepareMedia(ItemStatus::Complete(Ok(
             prepare_result,
-        )))));
+        ))));
 
         // Verify initial revision was created
         let track_tag = ctx.get_track_tag();
@@ -461,9 +460,9 @@ mod tests {
             detected_key: Some("Am".to_string()),
         };
 
-        ctx.handle_status(Arc::new(StageStatus::Keyfinder(ItemStatus::Complete(Ok(
+        ctx.handle_status(StageStatus::Keyfinder(ItemStatus::Complete(Ok(
             keyfinder_result,
-        )))));
+        ))));
 
         // Verify new revision was chained with the key
         let track_tag = ctx.get_track_tag();
@@ -471,10 +470,7 @@ mod tests {
 
         // Should have all previous fields plus the new key
         assert_eq!(latest_revision.tags.title, Some("Test Track".to_string()));
-        assert_eq!(
-            latest_revision.tags.artist,
-            Some("Test Artist".to_string())
-        );
+        assert_eq!(latest_revision.tags.artist, Some("Test Artist".to_string()));
         assert_eq!(latest_revision.tags.key, Some("Am".to_string()));
     }
 
@@ -505,29 +501,27 @@ mod tests {
         });
 
         // Test Waiting status
-        ctx.handle_status(Arc::new(StageStatus::Keyfinder(ItemStatus::Waiting)));
+        ctx.handle_status(StageStatus::Keyfinder(ItemStatus::Waiting));
 
         // Test Running status
-        ctx.handle_status(Arc::new(StageStatus::Keyfinder(ItemStatus::Running)));
+        ctx.handle_status(StageStatus::Keyfinder(ItemStatus::Running));
 
         // Test Skipped status
-        ctx.handle_status(Arc::new(StageStatus::Keyfinder(ItemStatus::Skipped(
+        ctx.handle_status(StageStatus::Keyfinder(ItemStatus::Skipped(
             "Already has key".to_string(),
-        ))));
+        )));
 
         // Test Complete (Success) status
         let success_result = keyfinder::KeyfinderResult {
             detected_key: Some("Am".to_string()),
         };
-        ctx.handle_status(Arc::new(StageStatus::Keyfinder(ItemStatus::Complete(Ok(
+        ctx.handle_status(StageStatus::Keyfinder(ItemStatus::Complete(Ok(
             success_result,
-        )))));
+        ))));
 
         // Test Complete (Failed) status
         let error = crate::keyfinder::KeyfinderError::BadPath;
-        ctx.handle_status(Arc::new(StageStatus::Keyfinder(ItemStatus::Complete(Err(
-            error,
-        )))));
+        ctx.handle_status(StageStatus::Keyfinder(ItemStatus::Complete(Err(error))));
 
         // Verify all status transitions were captured in order via callbacks
         let events = captured_events.lock().unwrap();
