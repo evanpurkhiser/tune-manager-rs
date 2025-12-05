@@ -1,4 +1,4 @@
-use std::{borrow::Cow, path::PathBuf, str::FromStr};
+use std::{borrow::Cow, path::PathBuf, str::FromStr, sync::LazyLock};
 
 use figment::{
     Figment,
@@ -8,6 +8,9 @@ use figment::{
 use serde::{Deserialize, Serialize};
 
 use crate::{app::cli, logging};
+
+static XDG_DIRS: LazyLock<xdg::BaseDirectories> =
+    LazyLock::new(|| xdg::BaseDirectories::with_prefix("tune-manager"));
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct BeatportConfig {
@@ -69,6 +72,10 @@ impl Default for MusicFileTypes {
 
 impl Default for Config {
     fn default() -> Self {
+        let data_path = XDG_DIRS
+            .get_data_home()
+            .unwrap_or_else(|| PathBuf::from_str("./data").unwrap());
+
         Self {
             sentry_dsn: None,
             sentry_env: None,
@@ -76,11 +83,22 @@ impl Default for Config {
             log_format: logging::LogFormat::Auto,
             catalog_path: PathBuf::from_str("./catalog").unwrap(),
             import_path: PathBuf::from_str("./new-music").unwrap(),
-            data_path: PathBuf::from_str("./data").unwrap(),
+            data_path,
             music_file_types: Default::default(),
             beatport: None,
             ai: None,
         }
+    }
+}
+
+/// Get the configuration file path from the CLI app or XDG default
+pub fn get_config_path(app: &cli::CliApp) -> Option<PathBuf> {
+    if let Some(path) = &app.config {
+        Some(path.clone())
+    } else {
+        XDG_DIRS
+            .find_config_file("config.yml")
+            .or_else(|| XDG_DIRS.find_config_file("config.yaml"))
     }
 }
 
@@ -89,7 +107,10 @@ impl Config {
     pub fn extract(app: &cli::CliApp) -> Result<Config, Box<figment::Error>> {
         let mut builder = Figment::from(Serialized::defaults(Config::default()));
 
-        if let Some(path) = &app.config {
+        // Use XDG config path if no config file is specified
+        let config_path = get_config_path(app);
+
+        if let Some(path) = config_path {
             builder = builder.merge(Yaml::file(path));
         };
 
