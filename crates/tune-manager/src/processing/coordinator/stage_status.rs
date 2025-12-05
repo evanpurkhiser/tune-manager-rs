@@ -115,7 +115,7 @@ mod tests {
 
     use super::*;
     use crate::processing::{
-        coordinator::batch::BatchConfig,
+        coordinator::batch::{self, BatchConfig},
         stages::{ProcessingStage, keyfinder, prepare_media, test_helpers::*},
         state::TrackRevision,
     };
@@ -128,10 +128,7 @@ mod tests {
     }
 
     /// Helper to mark a stage as complete
-    fn mark_stage_complete(
-        track: &mut super::super::batch::TrackProcessingState,
-        stage: ProcessingStage,
-    ) {
+    fn mark_stage_complete(track: &mut batch::TrackProcessingState, stage: ProcessingStage) {
         track.set_stage_status(make_status_completed(stage.clone()));
         track.stage_dispatched.insert(stage);
     }
@@ -148,7 +145,7 @@ mod tests {
     /// Test context that holds common test setup
     struct TestContext {
         batches: Batches,
-        batch_id: super::super::batch::BatchId,
+        batch_id: batch::BatchId,
         file_path: PathBuf,
         callback_registry: Arc<CallbackRegistry>,
     }
@@ -202,7 +199,7 @@ mod tests {
         }
 
         /// Get a reference to the track state
-        fn get_track(&self) -> &super::super::batch::TrackProcessingState {
+        fn get_track(&self) -> &batch::TrackProcessingState {
             self.batches
                 .get(&self.batch_id)
                 .unwrap()
