@@ -5,7 +5,7 @@ pub mod config;
 use std::io;
 
 use clap::Parser;
-use tracing::info;
+use tracing::debug;
 
 use crate::logging::{self, LoggingConfig};
 
@@ -15,7 +15,7 @@ pub fn execute() -> io::Result<()> {
 
     logging::init(LoggingConfig::from_config(&config));
 
-    info!(config = ?config);
+    debug!(config = ?config);
 
     match app.command {
         cli::Commands::Server => cmd::server::run(&config),
