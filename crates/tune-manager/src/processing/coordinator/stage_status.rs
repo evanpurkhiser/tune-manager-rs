@@ -47,6 +47,15 @@ pub fn handle_track_status<F>(
     if let StageStatus::PrepareMedia(ItemStatus::Complete(Ok(result))) = status.as_ref() {
         track_state.file_path = result.file_path.clone();
         track_state.tag = Some(result.tag.clone());
+
+        // If we're not reprocessing mark any already previously completed stages as Skipped.
+        if !batch.config.reprocess {
+            let msg = "Stage was previously completed";
+            track_state.stage_status = state::completed_stages(&result.tag)
+                .iter()
+                .map(|stage| Arc::new(stage.as_skipped_status(msg.to_string())))
+                .collect();
+        }
     }
 
     // Get previous revision for stages that need it
@@ -472,6 +481,58 @@ mod tests {
         assert_eq!(latest_revision.tags.title, Some("Test Track".to_string()));
         assert_eq!(latest_revision.tags.artist, Some("Test Artist".to_string()));
         assert_eq!(latest_revision.tags.key, Some("Am".to_string()));
+    }
+
+    #[test]
+    fn test_prepare_media_marks_completed_stages_as_skipped() {
+        let mut ctx = TestContext::new();
+
+        // Create a tag with PrepareMedia, Keyfinder, and Beatport already marked complete
+        let mut tag = Tag::new();
+        tag.set_title("Test Track");
+        state::mark_stage_complete(&mut tag, ProcessingStage::PrepareMedia).unwrap();
+        state::mark_stage_complete(&mut tag, ProcessingStage::Keyfinder).unwrap();
+        state::mark_stage_complete(&mut tag, ProcessingStage::Beatport).unwrap();
+
+        // Set reprocess to false
+        let batch = ctx.batches.get_mut(&ctx.batch_id).unwrap();
+        batch.config.reprocess = false;
+
+        // Complete PrepareMedia with the tag that has completed stages
+        let result = prepare_media::PrepareMediaResult {
+            file_path: ctx.file_path.clone(),
+            tag: tag.clone(),
+            media_hash: vec![1, 2, 3],
+        };
+
+        ctx.handle_status(StageStatus::PrepareMedia(ItemStatus::Complete(Ok(result))));
+
+        // Verify the previously completed stages were marked as skipped
+        let track = ctx.get_track();
+
+        // Should have skipped statuses for Keyfinder and Beatport
+        // (PrepareMedia isn't in there since we just completed it successfully)
+        let skipped_stages: Vec<_> = track
+            .stage_status
+            .iter()
+            .filter(|s| s.is_skipped())
+            .map(|s| s.stage())
+            .collect();
+
+        assert_eq!(skipped_stages.len(), 2);
+        assert!(skipped_stages.contains(&ProcessingStage::Keyfinder));
+        assert!(skipped_stages.contains(&ProcessingStage::Beatport));
+
+        // PrepareMedia should be marked as successful (not skipped) since we just ran it
+        let prepare_media_status = track
+            .stage_status
+            .iter()
+            .find(|s| s.stage() == ProcessingStage::PrepareMedia);
+        assert!(prepare_media_status.is_some());
+        assert!(prepare_media_status.unwrap().is_success());
+
+        // AI should not be skipped since it wasn't complete
+        assert!(!skipped_stages.contains(&ProcessingStage::Ai));
     }
 
     #[test]
