@@ -84,4 +84,6 @@ pub enum DebugCommands {
         #[clap(long, help = "Path to media file to read Beatport URL from", value_hint = ValueHint::FilePath)]
         file: Option<PathBuf>,
     },
+    #[clap(about = "Print the current application configuration")]
+    Config,
 }

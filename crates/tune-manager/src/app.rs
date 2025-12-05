@@ -17,16 +17,17 @@ pub fn execute() -> io::Result<()> {
 
     debug!(config = ?config);
 
-    match app.command {
+    match &app.command {
         cli::Commands::Server => cmd::server::run(&config),
         cli::Commands::Debug { command } => match command {
-            cli::DebugCommands::Ai { path } => cmd::debug::ai::run(path),
+            cli::DebugCommands::Ai { path } => cmd::debug::ai::run(path.clone()),
             cli::DebugCommands::Beatport {
                 username,
                 password,
                 file,
-            } => cmd::debug::beatport::run(username, password, file),
+            } => cmd::debug::beatport::run(username.clone(), password.clone(), file.clone()),
+            cli::DebugCommands::Config => cmd::debug::config::run(&app, &config),
         },
-        cli::Commands::Process { path } => cmd::process::run(path, &config),
+        cli::Commands::Process { path } => cmd::process::run(path.clone(), &config),
     }
 }
