@@ -150,30 +150,91 @@ mod tests {
         callback_registry: Arc<CallbackRegistry>,
     }
 
-    impl TestContext {
-        /// Create a new test context with standard setup
+    /// Builder for creating test contexts with custom configuration
+    struct TestContextBuilder {
+        file_path: Option<PathBuf>,
+        tag: Option<Tag>,
+        config: BatchConfig,
+    }
+
+    impl TestContextBuilder {
         fn new() -> Self {
-            let file_path = PathBuf::from("/test/track.mp3");
+            Self {
+                file_path: None,
+                tag: None,
+                config: BatchConfig::dry(),
+            }
+        }
+
+        fn with_file(mut self, file_path: PathBuf) -> Self {
+            self.file_path = Some(file_path);
+            self
+        }
+
+        fn with_tag(mut self, tag: Tag) -> Self {
+            self.tag = Some(tag);
+            self
+        }
+
+        fn with_persist(mut self, persist: bool) -> Self {
+            self.config.persist = persist;
+            self
+        }
+
+        fn with_reprocess(mut self, reprocess: bool) -> Self {
+            self.config.reprocess = reprocess;
+            self
+        }
+
+        fn build(self) -> TestContext {
+            let file_path = self
+                .file_path
+                .unwrap_or_else(|| PathBuf::from("/test/track.mp3"));
             let mut batches = Batches::new();
-            let batch = make_batch_with_track(file_path.clone());
+            let (tx, _rx) = oneshot::channel();
+            let mut batch = ProcessingBatch::new(vec![file_path.clone()], self.config, tx);
+
+            // Set tag if provided
+            if let Some(tag) = self.tag {
+                let track = batch.tracks.get_mut(&file_path).unwrap();
+                track.tag = Some(tag);
+            }
+
             let batch_id = batches.add(batch);
             let callback_registry = Arc::new(CallbackRegistry::new());
 
-            Self {
+            TestContext {
                 batches,
                 batch_id,
                 file_path,
                 callback_registry,
             }
         }
+    }
 
-        /// Create a test context with a track that has a tag
-        fn with_tag(tag: Tag) -> Self {
-            let mut ctx = Self::new();
-            let batch = ctx.batches.get_mut(&ctx.batch_id).unwrap();
-            let track = batch.tracks.get_mut(&ctx.file_path).unwrap();
-            track.tag = Some(tag);
-            ctx
+    impl TestContext {
+        fn new() -> TestContext {
+            Self::builder().build()
+        }
+
+        /// Create a builder for test contexts
+        fn builder() -> TestContextBuilder {
+            TestContextBuilder::new()
+        }
+
+        /// Get a mutable reference to the batch
+        fn get_batch_mut(&mut self) -> &mut ProcessingBatch {
+            self.batches.get_mut(&self.batch_id).unwrap()
+        }
+
+        /// Get a mutable reference to the track state
+        fn get_track_mut(&mut self) -> &mut batch::TrackProcessingState {
+            self.batches
+                .get_mut(&self.batch_id)
+                .unwrap()
+                .tracks
+                .get_mut(&self.file_path)
+                .unwrap()
         }
 
         /// Handle a status update using empty dispatcher
@@ -482,8 +543,6 @@ mod tests {
 
     #[test]
     fn test_prepare_media_marks_completed_stages_as_skipped() {
-        let mut ctx = TestContext::new();
-
         // Create a tag with PrepareMedia, Keyfinder, and Beatport already marked complete
         let mut tag = Tag::new();
         tag.set_title("Test Track");
@@ -491,9 +550,8 @@ mod tests {
         state::mark_stage_complete(&mut tag, ProcessingStage::Keyfinder).unwrap();
         state::mark_stage_complete(&mut tag, ProcessingStage::Beatport).unwrap();
 
-        // Set reprocess to false
-        let batch = ctx.batches.get_mut(&ctx.batch_id).unwrap();
-        batch.config.reprocess = false;
+        // Create test context with reprocess disabled
+        let mut ctx = TestContext::builder().with_reprocess(false).build();
 
         // Complete PrepareMedia with the tag that has completed stages
         let result = prepare_media::PrepareMediaResult {
@@ -542,7 +600,7 @@ mod tests {
         let prev_revision = TrackRevision::new(Default::default());
         state::append_track_revision(&mut tag, prev_revision).unwrap();
 
-        let mut ctx = TestContext::with_tag(tag);
+        let mut ctx = TestContext::builder().with_tag(tag).build();
 
         // Track all events in order
         let captured_events = Arc::new(Mutex::new(Vec::new()));
