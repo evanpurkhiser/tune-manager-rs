@@ -25,7 +25,7 @@ jobs:
 
       - name: Build libkeyfinder
         run: |
-          git clone https://github.com/mixxxdj/libkeyfinder keyfinder
+          git clone --branch 2.2.8 --depth 1 https://github.com/mixxxdj/libkeyfinder keyfinder
           cd keyfinder
           cmake -S . -B build
           cmake --build build
