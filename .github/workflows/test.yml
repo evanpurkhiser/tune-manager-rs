@@ -30,6 +30,7 @@ jobs:
           cmake -S . -B build
           cmake --build build
           sudo cmake --install build
+          sudo ldconfig
 
       - name: Build keyfinder-cli
         run: |
