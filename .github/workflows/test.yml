@@ -34,8 +34,10 @@ jobs:
 
       - name: Build keyfinder-cli
         run: |
+          # keyfinder-cli v1.2.0
           git clone https://github.com/evanpurkhiser/keyfinder-cli
           cd keyfinder-cli
+          git checkout 3546595255ce7f4b80d52cb7a5e4e9cc342705a5
           cmake -S . -B build
           cmake --build build
           sudo cmake --install build
