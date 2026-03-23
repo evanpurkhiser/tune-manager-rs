@@ -60,7 +60,7 @@ pub fn to_aiff(input_path: impl AsRef<Path>) -> Result<PathBuf, ConvertError> {
 #[cfg(test)]
 mod test {
     use std::{
-        env::{join_paths, temp_dir},
+        env::temp_dir,
         fs::{copy, exists},
         io::Error,
     };
@@ -72,7 +72,7 @@ mod test {
     #[test]
     fn test_to_aiff() -> Result<(), Error> {
         let dir = temp_dir();
-        let target = join_paths([dir.to_str().unwrap(), "example.wav"]).unwrap();
+        let target = dir.join("example.wav");
 
         copy(fixture_path("example.wav"), &target)?;
         let aiff_file = to_aiff(&target).unwrap();
