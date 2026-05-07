@@ -23,7 +23,8 @@ Invalid:
 - 170.00 (whole numbers should not be decimal)
 "#};
 
-static BPM_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[0-9]+(?:\.[0-9]?[1-9])?$").unwrap());
+static BPM_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[0-9]+(?:\.[0-9]?[1-9])?$").unwrap());
 
 pub struct BpmNumericRule;
 

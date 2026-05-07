@@ -5,7 +5,11 @@ use tracing::info;
 use crate::{
     app::config::Config,
     file_utils,
-    processing::coordinator::{batch::{BatchConfig, StatusEvent}, callbacks::callback, ProcessingCoordinator},
+    processing::coordinator::{
+        ProcessingCoordinator,
+        batch::{BatchConfig, StatusEvent},
+        callbacks::callback,
+    },
 };
 
 pub async fn process_path(path: PathBuf, config: &Config) -> io::Result<()> {

@@ -104,7 +104,10 @@ use crate::app::config::Config;
 use super::stages::{ai, beatport, keyfinder, prepare_media};
 
 use self::{
-    batch::{Batches, BatchConfig, BatchHandle, BatchStageInput, BatchState, ProcessingBatch, handle_new_batch},
+    batch::{
+        BatchConfig, BatchHandle, BatchStageInput, BatchState, Batches, ProcessingBatch,
+        handle_new_batch,
+    },
     callbacks::{CallbackHandle, CallbackRegistry, StatusCallback},
     stage_dispatcher::dispatch_next_stages,
     stage_runner::handle_stage_dispatch,
