@@ -6,6 +6,7 @@ mod file_utils;
 mod keyfinder;
 mod logging;
 mod processing;
+mod rules;
 mod services;
 mod tags;
 mod track;
