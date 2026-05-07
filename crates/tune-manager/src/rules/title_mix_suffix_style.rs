@@ -41,11 +41,35 @@ impl TrackRule for TitleMixSuffixStyleRule {
         if MIX_RE.is_match(title) {
             return vec![];
         }
-
-        if FUZZY_MIX_RE.is_match(title) {
-            return vec![self.error("Title mix suffix is not canonical")];
+        if !FUZZY_MIX_RE.is_match(title) {
+            return vec![];
         }
-        vec![]
+        vec![
+            self.error("Title mix suffix is not canonical")
+                .with_fix(|track| {
+                    if let Some(title) = track.tags.title.as_deref() {
+                        track.tags.title = Some(canonicalize_mix_suffix(title));
+                    }
+                }),
+        ]
+    }
+}
+
+fn canonicalize_mix_suffix(title: &str) -> String {
+    FUZZY_MIX_RE
+        .replace_all(title, |caps: &regex::Captures| {
+            let prefix = &caps[1];
+            let keyword = title_case(&caps[2]);
+            format!("({prefix} {keyword})")
+        })
+        .to_string()
+}
+
+fn title_case(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) => c.to_ascii_uppercase().to_string() + &chars.as_str().to_ascii_lowercase(),
+        None => String::new(),
     }
 }
 
@@ -66,5 +90,33 @@ mod tests {
         let mut track = make_track();
         track.tags.title = Some("Song (artist remix)".to_string());
         assert_eq!(TitleMixSuffixStyleRule.check(&track).len(), 1);
+    }
+
+    fn fixed_title(input: &str) -> String {
+        let mut track = make_track();
+        track.tags.title = Some(input.to_string());
+        let violations = TitleMixSuffixStyleRule.check(&track);
+        violations[0].fix.as_ref().unwrap().apply(&mut track);
+        track.tags.title.unwrap()
+    }
+
+    #[test]
+    fn fix_lowercase_remix() {
+        assert_eq!(fixed_title("Song (artist remix)"), "Song (artist Remix)");
+    }
+
+    #[test]
+    fn fix_uppercase_keyword() {
+        assert_eq!(fixed_title("Song (artist REMIX)"), "Song (artist Remix)");
+    }
+
+    #[test]
+    fn fix_edit_keyword() {
+        assert_eq!(fixed_title("Song (artist edit)"), "Song (artist Edit)");
+    }
+
+    #[test]
+    fn fix_preserves_artist_casing() {
+        assert_eq!(fixed_title("Song (deadmau5 remix)"), "Song (deadmau5 Remix)");
     }
 }
