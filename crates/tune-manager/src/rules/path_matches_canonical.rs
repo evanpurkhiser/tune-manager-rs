@@ -1,30 +1,29 @@
 use crate::{
-    rules::{RuleSeverity, RuleViolation, TrackRule, violation},
+    rule_metadata,
+    rules::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
-const RULE_ID: &str = "path.matches-canonical";
-const DESCRIPTION: &str = indoc::indoc! {r#"
-Path must exactly match the canonical path generated from track tags.
+static METADATA: RuleMetadata = rule_metadata! {
+    id: "path.matches-canonical",
+    description: r#"
+        Path must exactly match the canonical path generated from track tags.
 
-Valid:
-- Publisher/[RLS] Album/01. [10A] Artist - Title.mp3
-- Publisher/[+singles]/[10A] Artist - Title.mp3
+        Valid:
+        - Publisher/[RLS] Album/01. [10A] Artist - Title.mp3
+        - Publisher/[+singles]/[10A] Artist - Title.mp3
 
-Invalid:
-- Publisher/[RLS] Album/99. [10A] Artist - Title.mp3 (wrong track number)
-- WrongPublisher/[RLS] Album/01. [10A] Artist - Title.mp3 (non-canonical directory)
-"#};
+        Invalid:
+        - Publisher/[RLS] Album/99. [10A] Artist - Title.mp3 (wrong track number)
+        - WrongPublisher/[RLS] Album/01. [10A] Artist - Title.mp3 (non-canonical directory)
+    "#,
+};
 
 pub struct PathMatchesCanonicalRule;
 
 impl TrackRule for PathMatchesCanonicalRule {
-    fn id(&self) -> &'static str {
-        RULE_ID
-    }
-
-    fn description(&self) -> &'static str {
-        DESCRIPTION
+    fn metadata(&self) -> &'static RuleMetadata {
+        &METADATA
     }
 
     fn check(&self, track: &Track) -> Vec<RuleViolation> {
@@ -35,14 +34,10 @@ impl TrackRule for PathMatchesCanonicalRule {
             return vec![];
         }
 
-        vec![violation(
-            RULE_ID,
-            RuleSeverity::Error,
-            format!(
-                "Path does not match canonical path: {}",
-                canonical.display()
-            ),
-        )]
+        vec![self.error(format!(
+            "Path does not match canonical path: {}",
+            canonical.display()
+        ))]
     }
 }
 

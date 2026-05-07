@@ -2,34 +2,33 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    rules::{RuleSeverity, RuleViolation, TrackRule, violation},
+    rule_metadata,
+    rules::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
-const RULE_ID: &str = "artist.separator-standardization";
-const DESCRIPTION: &str = indoc::indoc! {r#"
-Artist collaboration separators must use canonical tokens.
+static METADATA: RuleMetadata = rule_metadata! {
+    id: "artist.separator-standardization",
+    description: r#"
+        Artist collaboration separators must use canonical tokens.
 
-Valid:
-- A & B
-- A vs B
+        Valid:
+        - A & B
+        - A vs B
 
-Invalid:
-- A and B (use &)
-- A vs. B (use vs without period)
-"#};
+        Invalid:
+        - A and B (use &)
+        - A vs. B (use vs without period)
+    "#,
+};
 
 static NON_CANON_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\s(and|vs\.)\s").unwrap());
 
 pub struct ArtistSeparatorStandardizationRule;
 
 impl TrackRule for ArtistSeparatorStandardizationRule {
-    fn id(&self) -> &'static str {
-        RULE_ID
-    }
-
-    fn description(&self) -> &'static str {
-        DESCRIPTION
+    fn metadata(&self) -> &'static RuleMetadata {
+        &METADATA
     }
 
     fn check(&self, track: &Track) -> Vec<RuleViolation> {
@@ -37,11 +36,7 @@ impl TrackRule for ArtistSeparatorStandardizationRule {
             return vec![];
         };
         if NON_CANON_RE.is_match(artist) {
-            return vec![violation(
-                RULE_ID,
-                RuleSeverity::Warn,
-                "Artist connectors are not canonical",
-            )];
+            return vec![self.error("Artist connectors are not canonical")];
         }
         vec![]
     }

@@ -24,7 +24,6 @@ pub mod year_format;
 pub enum RuleSeverity {
     Error,
     Warn,
-    Info,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,11 +33,56 @@ pub struct RuleViolation {
     pub message: String,
 }
 
+/// Static metadata describing a rule. Each rule defines a single `METADATA`
+/// constant via the [`rule_metadata!`] macro and exposes it through
+/// [`TrackRule::metadata`].
+#[derive(Debug)]
+pub struct RuleMetadata {
+    pub id: &'static str,
+    pub description: &'static str,
+}
+
+/// Construct a [`RuleMetadata`] in `static` position. The description is run
+/// through [`indoc::indoc!`] so rule files can write naturally-indented prose
+/// without escaping leading whitespace.
+#[macro_export]
+macro_rules! rule_metadata {
+    (id: $id:literal, description: $description:literal $(,)?) => {
+        $crate::rules::RuleMetadata {
+            id: $id,
+            description: ::indoc::indoc!($description),
+        }
+    };
+}
+
 pub trait TrackRule: Send + Sync {
-    fn id(&self) -> &'static str;
-    fn description(&self) -> &'static str;
+    fn metadata(&self) -> &'static RuleMetadata;
 
     fn check(&self, track: &Track) -> Vec<RuleViolation>;
+
+    /// Build an `Error`-severity violation tagged with this rule's id.
+    fn error(&self, message: impl Into<String>) -> RuleViolation
+    where
+        Self: Sized,
+    {
+        RuleViolation {
+            rule_id: self.metadata().id,
+            severity: RuleSeverity::Error,
+            message: message.into(),
+        }
+    }
+
+    /// Build a `Warn`-severity violation tagged with this rule's id.
+    fn warn(&self, message: impl Into<String>) -> RuleViolation
+    where
+        Self: Sized,
+    {
+        RuleViolation {
+            rule_id: self.metadata().id,
+            severity: RuleSeverity::Warn,
+            message: message.into(),
+        }
+    }
 }
 
 pub fn track_only_rules() -> Vec<Box<dyn TrackRule>> {
@@ -63,18 +107,6 @@ pub fn track_only_rules() -> Vec<Box<dyn TrackRule>> {
         Box::new(year_format::YearFormatRule),
         Box::new(bpm_numeric::BpmNumericRule),
     ]
-}
-
-pub fn violation(
-    rule_id: &'static str,
-    severity: RuleSeverity,
-    message: impl Into<String>,
-) -> RuleViolation {
-    RuleViolation {
-        rule_id,
-        severity,
-        message: message.into(),
-    }
 }
 
 #[cfg(test)]

@@ -1,38 +1,33 @@
 use crate::{
-    rules::{RuleSeverity, RuleViolation, TrackRule, violation},
+    rule_metadata,
+    rules::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
-const RULE_ID: &str = "disc.requires-track";
-const DESCRIPTION: &str = indoc::indoc! {r#"
-If disc is present, track must also be present.
+static METADATA: RuleMetadata = rule_metadata! {
+    id: "disc.requires-track",
+    description: r#"
+        If disc is present, track must also be present.
 
-Valid:
-- disc=1/2, track=01/10
-- disc missing, track missing
+        Valid:
+        - disc=1/2, track=01/10
+        - disc missing, track missing
 
-Invalid:
-- disc=1/2, track missing (disc context without track index)
-"#};
+        Invalid:
+        - disc=1/2, track missing (disc context without track index)
+    "#,
+};
 
 pub struct DiscRequiresTrackRule;
 
 impl TrackRule for DiscRequiresTrackRule {
-    fn id(&self) -> &'static str {
-        RULE_ID
-    }
-
-    fn description(&self) -> &'static str {
-        DESCRIPTION
+    fn metadata(&self) -> &'static RuleMetadata {
+        &METADATA
     }
 
     fn check(&self, track: &Track) -> Vec<RuleViolation> {
         if track.tags.disc.is_some() && track.tags.track.is_none() {
-            return vec![violation(
-                RULE_ID,
-                RuleSeverity::Warn,
-                "Disc is present but track is missing",
-            )];
+            return vec![self.error("Disc is present but track is missing")];
         }
         vec![]
     }

@@ -2,26 +2,29 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    rules::{RuleSeverity, RuleViolation, TrackRule, violation},
+    rule_metadata,
+    rules::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
-const RULE_ID: &str = "bpm.numeric";
-const DESCRIPTION: &str = indoc::indoc! {r#"
-BPM must be numeric with strict decimal formatting.
+static METADATA: RuleMetadata = rule_metadata! {
+    id: "bpm.numeric",
+    description: r#"
+        BPM must be numeric with strict decimal formatting.
 
-Valid:
-- 170
-- 128.5
-- 128.25
+        Valid:
+        - 170
+        - 128.5
+        - 128.25
 
-Invalid:
-- fast (not numeric)
-- 12x (contains non-numeric characters)
-- 128.345 (more than two decimal places)
-- 170.50 (trailing zero in decimal form)
-- 170.00 (whole numbers should not be decimal)
-"#};
+        Invalid:
+        - fast (not numeric)
+        - 12x (contains non-numeric characters)
+        - 128.345 (more than two decimal places)
+        - 170.50 (trailing zero in decimal form)
+        - 170.00 (whole numbers should not be decimal)
+    "#,
+};
 
 static BPM_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[0-9]+(?:\.[0-9]?[1-9])?$").unwrap());
@@ -29,12 +32,8 @@ static BPM_RE: LazyLock<Regex> =
 pub struct BpmNumericRule;
 
 impl TrackRule for BpmNumericRule {
-    fn id(&self) -> &'static str {
-        RULE_ID
-    }
-
-    fn description(&self) -> &'static str {
-        DESCRIPTION
+    fn metadata(&self) -> &'static RuleMetadata {
+        &METADATA
     }
 
     fn check(&self, track: &Track) -> Vec<RuleViolation> {
@@ -44,9 +43,7 @@ impl TrackRule for BpmNumericRule {
         if BPM_RE.is_match(bpm) {
             return vec![];
         }
-        vec![violation(
-            RULE_ID,
-            RuleSeverity::Warn,
+        vec![self.error(
             "BPM must be integer or decimal with 1-2 places and no trailing decimal zero",
         )]
     }

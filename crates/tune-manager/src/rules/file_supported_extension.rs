@@ -1,32 +1,31 @@
 use std::collections::HashSet;
 
 use crate::{
-    rules::{RuleSeverity, RuleViolation, TrackRule, violation},
+    rule_metadata,
+    rules::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
-const RULE_ID: &str = "file.supported-extension";
-const DESCRIPTION: &str = indoc::indoc! {r#"
-File extension must be in the supported audio file set.
+static METADATA: RuleMetadata = rule_metadata! {
+    id: "file.supported-extension",
+    description: r#"
+        File extension must be in the supported audio file set.
 
-Valid:
-- Artist - Title.mp3
-- Artist - Title.aif
+        Valid:
+        - Artist - Title.mp3
+        - Artist - Title.aif
 
-Invalid:
-- Artist - Title.ogg (unsupported extension)
-- Artist - Title (missing extension)
-"#};
+        Invalid:
+        - Artist - Title.ogg (unsupported extension)
+        - Artist - Title (missing extension)
+    "#,
+};
 
 pub struct FileSupportedExtensionRule;
 
 impl TrackRule for FileSupportedExtensionRule {
-    fn id(&self) -> &'static str {
-        RULE_ID
-    }
-
-    fn description(&self) -> &'static str {
-        DESCRIPTION
+    fn metadata(&self) -> &'static RuleMetadata {
+        &METADATA
     }
 
     fn check(&self, track: &Track) -> Vec<RuleViolation> {
@@ -40,11 +39,7 @@ impl TrackRule for FileSupportedExtensionRule {
 
         match ext {
             Some(ext) if supported.contains(ext.as_str()) => vec![],
-            _ => vec![violation(
-                RULE_ID,
-                RuleSeverity::Error,
-                "File extension is not supported",
-            )],
+            _ => vec![self.error("File extension is not supported")],
         }
     }
 }

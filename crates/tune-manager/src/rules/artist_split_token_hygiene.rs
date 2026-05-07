@@ -2,22 +2,26 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    rules::{RuleSeverity, RuleViolation, TrackRule, violation},
+    rule_metadata,
+    rules::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
-const RULE_ID: &str = "artist.split-token-hygiene";
-const DESCRIPTION: &str = indoc::indoc! {r#"
-Artist connector syntax must be clean with no dangling or duplicated separators.
+static METADATA: RuleMetadata = rule_metadata! {
+    id: "artist.split-token-hygiene",
+    description: r#"
+        Artist connector syntax must be clean with no dangling or duplicated
+        separators.
 
-Valid:
-- A & B
-- A, B & C
+        Valid:
+        - A & B
+        - A, B & C
 
-Invalid:
-- A ,  B (bad spacing)
-- A & & B (duplicate separator)
-"#};
+        Invalid:
+        - A ,  B (bad spacing)
+        - A & & B (duplicate separator)
+    "#,
+};
 
 static BAD_HYGIENE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(\s,)|(,\s*,)|(&\s*&)|(\s{2,})|(^[,&\s]+)|([,&\s]+$)").unwrap());
@@ -25,12 +29,8 @@ static BAD_HYGIENE_RE: LazyLock<Regex> =
 pub struct ArtistSplitTokenHygieneRule;
 
 impl TrackRule for ArtistSplitTokenHygieneRule {
-    fn id(&self) -> &'static str {
-        RULE_ID
-    }
-
-    fn description(&self) -> &'static str {
-        DESCRIPTION
+    fn metadata(&self) -> &'static RuleMetadata {
+        &METADATA
     }
 
     fn check(&self, track: &Track) -> Vec<RuleViolation> {
@@ -38,11 +38,7 @@ impl TrackRule for ArtistSplitTokenHygieneRule {
             return vec![];
         };
         if BAD_HYGIENE_RE.is_match(artist) {
-            return vec![violation(
-                RULE_ID,
-                RuleSeverity::Warn,
-                "Artist connector hygiene is invalid",
-            )];
+            return vec![self.error("Artist connector hygiene is invalid")];
         }
         vec![]
     }

@@ -1,30 +1,29 @@
 use crate::{
-    rules::{RuleSeverity, RuleViolation, TrackRule, violation},
+    rule_metadata,
+    rules::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
-const RULE_ID: &str = "meta.publisher-catalog-pairing";
-const DESCRIPTION: &str = indoc::indoc! {r#"
-Publisher and catalog_id must be coupled.
+static METADATA: RuleMetadata = rule_metadata! {
+    id: "meta.publisher-catalog-pairing",
+    description: r#"
+        Publisher and catalog_id must be coupled.
 
-Valid:
-- publisher=Label, catalog_id=RLS001
-- publisher=Label, catalog_id=--
+        Valid:
+        - publisher=Label, catalog_id=RLS001
+        - publisher=Label, catalog_id=--
 
-Invalid:
-- publisher=Label, catalog_id missing (expected -- when unknown)
-- catalog_id=RLS001, publisher missing
-"#};
+        Invalid:
+        - publisher=Label, catalog_id missing (expected -- when unknown)
+        - catalog_id=RLS001, publisher missing
+    "#,
+};
 
 pub struct MetaPublisherCatalogPairingRule;
 
 impl TrackRule for MetaPublisherCatalogPairingRule {
-    fn id(&self) -> &'static str {
-        RULE_ID
-    }
-
-    fn description(&self) -> &'static str {
-        DESCRIPTION
+    fn metadata(&self) -> &'static RuleMetadata {
+        &METADATA
     }
 
     fn check(&self, track: &Track) -> Vec<RuleViolation> {
@@ -42,17 +41,11 @@ impl TrackRule for MetaPublisherCatalogPairingRule {
             .filter(|v| !v.is_empty());
 
         match (publisher, catalog_id) {
-            (Some(_), None) => vec![violation(
-                RULE_ID,
-                RuleSeverity::Warn,
-                "Publisher is present but catalog_id is missing (expected --)",
-            )],
+            (Some(_), None) => {
+                vec![self.error("Publisher is present but catalog_id is missing (expected --)")]
+            }
             (Some(_), Some("--")) => vec![],
-            (None, Some(_)) => vec![violation(
-                RULE_ID,
-                RuleSeverity::Warn,
-                "Catalog_id is present but publisher is missing",
-            )],
+            (None, Some(_)) => vec![self.error("Catalog_id is present but publisher is missing")],
             _ => vec![],
         }
     }

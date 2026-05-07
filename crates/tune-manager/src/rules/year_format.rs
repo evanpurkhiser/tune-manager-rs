@@ -2,34 +2,33 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    rules::{RuleSeverity, RuleViolation, TrackRule, violation},
+    rule_metadata,
+    rules::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
-const RULE_ID: &str = "year.format";
-const DESCRIPTION: &str = indoc::indoc! {r#"
-Year must be a four-digit numeric value.
+static METADATA: RuleMetadata = rule_metadata! {
+    id: "year.format",
+    description: r#"
+        Year must be a four-digit numeric value.
 
-Valid:
-- 2015
-- 1999
+        Valid:
+        - 2015
+        - 1999
 
-Invalid:
-- 15 (too short)
-- 20A5 (non-numeric)
-"#};
+        Invalid:
+        - 15 (too short)
+        - 20A5 (non-numeric)
+    "#,
+};
 
 static YEAR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d{4}$").unwrap());
 
 pub struct YearFormatRule;
 
 impl TrackRule for YearFormatRule {
-    fn id(&self) -> &'static str {
-        RULE_ID
-    }
-
-    fn description(&self) -> &'static str {
-        DESCRIPTION
+    fn metadata(&self) -> &'static RuleMetadata {
+        &METADATA
     }
 
     fn check(&self, track: &Track) -> Vec<RuleViolation> {
@@ -40,11 +39,7 @@ impl TrackRule for YearFormatRule {
         if YEAR_RE.is_match(year) {
             return vec![];
         }
-        vec![violation(
-            RULE_ID,
-            RuleSeverity::Warn,
-            "Year must be in YYYY format",
-        )]
+        vec![self.error("Year must be in YYYY format")]
     }
 }
 

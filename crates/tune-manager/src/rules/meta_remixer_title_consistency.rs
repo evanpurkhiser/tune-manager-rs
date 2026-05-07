@@ -2,22 +2,25 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    rules::{RuleSeverity, RuleViolation, TrackRule, violation},
+    rule_metadata,
+    rules::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
-const RULE_ID: &str = "meta.remixer-title-consistency";
-const DESCRIPTION: &str = indoc::indoc! {r#"
-Remixer field and title remix note must agree.
+static METADATA: RuleMetadata = rule_metadata! {
+    id: "meta.remixer-title-consistency",
+    description: r#"
+        Remixer field and title remix note must agree.
 
-Valid:
-- title=Song (Remixer Remix), remixer=Remixer
-- title=Song, remixer missing
+        Valid:
+        - title=Song (Remixer Remix), remixer=Remixer
+        - title=Song, remixer missing
 
-Invalid:
-- title=Song (Other Remix), remixer=Remixer (name mismatch)
-- title=Song (Remixer Remix), remixer missing (missing remixer field)
-"#};
+        Invalid:
+        - title=Song (Other Remix), remixer=Remixer (name mismatch)
+        - title=Song (Remixer Remix), remixer missing (missing remixer field)
+    "#,
+};
 
 static REMIX_NOTE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)\([^\)]*remix\)").unwrap());
@@ -25,12 +28,8 @@ static REMIX_NOTE_RE: LazyLock<Regex> =
 pub struct MetaRemixerTitleConsistencyRule;
 
 impl TrackRule for MetaRemixerTitleConsistencyRule {
-    fn id(&self) -> &'static str {
-        RULE_ID
-    }
-
-    fn description(&self) -> &'static str {
-        DESCRIPTION
+    fn metadata(&self) -> &'static RuleMetadata {
+        &METADATA
     }
 
     fn check(&self, track: &Track) -> Vec<RuleViolation> {
@@ -44,19 +43,11 @@ impl TrackRule for MetaRemixerTitleConsistencyRule {
         let has_remix_note = REMIX_NOTE_RE.is_match(title);
 
         if remixer.is_none() && has_remix_note {
-            return vec![violation(
-                RULE_ID,
-                RuleSeverity::Warn,
-                "Title has remix signal but remixer field is empty",
-            )];
+            return vec![self.error("Title has remix signal but remixer field is empty")];
         }
 
         if remixer.is_some() && !has_remix_note {
-            return vec![violation(
-                RULE_ID,
-                RuleSeverity::Warn,
-                "Remixer is set but title has no remix signal",
-            )];
+            return vec![self.error("Remixer is set but title has no remix signal")];
         }
 
         if let Some(remixer) = remixer
@@ -65,11 +56,7 @@ impl TrackRule for MetaRemixerTitleConsistencyRule {
                 .to_ascii_lowercase()
                 .contains(&remixer.to_ascii_lowercase())
         {
-            return vec![violation(
-                RULE_ID,
-                RuleSeverity::Warn,
-                "Remixer field does not match title remix note",
-            )];
+            return vec![self.error("Remixer field does not match title remix note")];
         }
 
         vec![]

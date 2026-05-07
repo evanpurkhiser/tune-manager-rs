@@ -1,47 +1,38 @@
 use crate::{
     fields::CountField,
-    rules::{RuleSeverity, RuleViolation, TrackRule, violation},
+    rule_metadata,
+    rules::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
-const RULE_ID: &str = "disc.count-format";
-const DESCRIPTION: &str = indoc::indoc! {r#"
-Disc count must be parseable and internally valid when present.
+static METADATA: RuleMetadata = rule_metadata! {
+    id: "disc.count-format",
+    description: r#"
+        Disc count must be parseable and internally valid when present.
 
-Valid:
-- 01/02
-- 1/1
+        Valid:
+        - 01/02
+        - 1/1
 
-Invalid:
-- x/y (not parseable)
-- 3/2 (disc number greater than total)
-"#};
+        Invalid:
+        - x/y (not parseable)
+        - 3/2 (disc number greater than total)
+    "#,
+};
 
 pub struct DiscCountFormatRule;
 
 impl TrackRule for DiscCountFormatRule {
-    fn id(&self) -> &'static str {
-        RULE_ID
-    }
-
-    fn description(&self) -> &'static str {
-        DESCRIPTION
+    fn metadata(&self) -> &'static RuleMetadata {
+        &METADATA
     }
 
     fn check(&self, track: &Track) -> Vec<RuleViolation> {
         match track.tags.disc.as_ref() {
             None => vec![],
-            Some(CountField::Invalid(_)) => vec![violation(
-                RULE_ID,
-                RuleSeverity::Warn,
-                "Disc number format is invalid",
-            )],
+            Some(CountField::Invalid(_)) => vec![self.error("Disc number format is invalid")],
             Some(CountField::Valid(c)) if c.number == 0 || c.total == 0 || c.number > c.total => {
-                vec![violation(
-                    RULE_ID,
-                    RuleSeverity::Warn,
-                    "Disc number is out of valid range",
-                )]
+                vec![self.error("Disc number is out of valid range")]
             }
             Some(CountField::Valid(_)) => vec![],
         }

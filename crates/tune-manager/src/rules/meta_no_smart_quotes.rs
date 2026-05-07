@@ -1,32 +1,31 @@
 use crate::{
-    rules::{RuleSeverity, RuleViolation, TrackRule, violation},
+    rule_metadata,
+    rules::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
-const RULE_ID: &str = "meta.no-smart-quotes";
-const DESCRIPTION: &str = indoc::indoc! {r#"
-Text metadata must not contain smart quote characters.
+static METADATA: RuleMetadata = rule_metadata! {
+    id: "meta.no-smart-quotes",
+    description: r#"
+        Text metadata must not contain smart quote characters.
 
-Valid:
-- Don't Stop
-- Artist "Name"
+        Valid:
+        - Don't Stop
+        - Artist "Name"
 
-Invalid:
-- Don’t Stop (contains curly apostrophe)
-- Artist “Name” (contains curly quotes)
-"#};
+        Invalid:
+        - Don’t Stop (contains curly apostrophe)
+        - Artist “Name” (contains curly quotes)
+    "#,
+};
 
 const SMART_QUOTES: [char; 6] = ['“', '”', '‘', '’', '´', '`'];
 
 pub struct MetaNoSmartQuotesRule;
 
 impl TrackRule for MetaNoSmartQuotesRule {
-    fn id(&self) -> &'static str {
-        RULE_ID
-    }
-
-    fn description(&self) -> &'static str {
-        DESCRIPTION
+    fn metadata(&self) -> &'static RuleMetadata {
+        &METADATA
     }
 
     fn check(&self, track: &Track) -> Vec<RuleViolation> {
@@ -43,11 +42,7 @@ impl TrackRule for MetaNoSmartQuotesRule {
             .flatten()
             .any(|v| v.chars().any(|c| SMART_QUOTES.contains(&c)))
         {
-            return vec![violation(
-                RULE_ID,
-                RuleSeverity::Warn,
-                "Smart quotes are not allowed",
-            )];
+            return vec![self.error("Smart quotes are not allowed")];
         }
 
         vec![]

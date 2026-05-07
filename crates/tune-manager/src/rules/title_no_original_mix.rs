@@ -2,22 +2,25 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    rules::{RuleSeverity, RuleViolation, TrackRule, violation},
+    rule_metadata,
+    rules::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
-const RULE_ID: &str = "title.no-original-mix";
-const DESCRIPTION: &str = indoc::indoc! {r#"
-Title must not include an Original Mix marker.
+static METADATA: RuleMetadata = rule_metadata! {
+    id: "title.no-original-mix",
+    description: r#"
+        Title must not include an Original Mix marker.
 
-Valid:
-- Song
-- Song (Artist Remix)
+        Valid:
+        - Song
+        - Song (Artist Remix)
 
-Invalid:
-- Song (Original Mix) (original mix label should be removed)
-- Song (ORIGINAL MIX) (case-insensitive match)
-"#};
+        Invalid:
+        - Song (Original Mix) (original mix label should be removed)
+        - Song (ORIGINAL MIX) (case-insensitive match)
+    "#,
+};
 
 static ORIGINAL_MIX_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\(original mix\)").unwrap());
@@ -25,12 +28,8 @@ static ORIGINAL_MIX_RE: LazyLock<Regex> =
 pub struct TitleNoOriginalMixRule;
 
 impl TrackRule for TitleNoOriginalMixRule {
-    fn id(&self) -> &'static str {
-        RULE_ID
-    }
-
-    fn description(&self) -> &'static str {
-        DESCRIPTION
+    fn metadata(&self) -> &'static RuleMetadata {
+        &METADATA
     }
 
     fn check(&self, track: &Track) -> Vec<RuleViolation> {
@@ -38,11 +37,7 @@ impl TrackRule for TitleNoOriginalMixRule {
             return vec![];
         };
         if ORIGINAL_MIX_RE.is_match(&title.to_ascii_lowercase()) {
-            return vec![violation(
-                RULE_ID,
-                RuleSeverity::Warn,
-                "Title should not include (Original Mix)",
-            )];
+            return vec![self.error("Title should not include (Original Mix)")];
         }
         vec![]
     }

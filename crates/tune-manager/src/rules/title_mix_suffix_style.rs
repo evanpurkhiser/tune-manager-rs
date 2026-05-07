@@ -2,22 +2,25 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    rules::{RuleSeverity, RuleViolation, TrackRule, violation},
+    rule_metadata,
+    rules::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
-const RULE_ID: &str = "title.mix-suffix-style";
-const DESCRIPTION: &str = indoc::indoc! {r#"
-Mix/edit/version suffix in title must use canonical capitalization.
+static METADATA: RuleMetadata = rule_metadata! {
+    id: "title.mix-suffix-style",
+    description: r#"
+        Mix/edit/version suffix in title must use canonical capitalization.
 
-Valid:
-- Song (Artist Remix)
-- Song (Producer Edit)
+        Valid:
+        - Song (Artist Remix)
+        - Song (Producer Edit)
 
-Invalid:
-- Song (artist remix) (non-canonical suffix style)
-- Song (artist version) (non-canonical suffix style)
-"#};
+        Invalid:
+        - Song (artist remix) (non-canonical suffix style)
+        - Song (artist version) (non-canonical suffix style)
+    "#,
+};
 
 static MIX_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\(([^\)]*?)\s(Remix|Edit|Mix|Version)\)").unwrap());
@@ -27,12 +30,8 @@ static FUZZY_MIX_RE: LazyLock<Regex> =
 pub struct TitleMixSuffixStyleRule;
 
 impl TrackRule for TitleMixSuffixStyleRule {
-    fn id(&self) -> &'static str {
-        RULE_ID
-    }
-
-    fn description(&self) -> &'static str {
-        DESCRIPTION
+    fn metadata(&self) -> &'static RuleMetadata {
+        &METADATA
     }
 
     fn check(&self, track: &Track) -> Vec<RuleViolation> {
@@ -44,11 +43,7 @@ impl TrackRule for TitleMixSuffixStyleRule {
         }
 
         if FUZZY_MIX_RE.is_match(title) {
-            return vec![violation(
-                RULE_ID,
-                RuleSeverity::Warn,
-                "Title mix suffix is not canonical",
-            )];
+            return vec![self.error("Title mix suffix is not canonical")];
         }
         vec![]
     }
