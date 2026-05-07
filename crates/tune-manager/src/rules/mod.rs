@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+pub use text_field::TextField;
+
 use crate::track::Track;
 
 pub mod album_requires_disc;
@@ -16,6 +18,7 @@ pub mod meta_publisher_catalog_pairing;
 pub mod meta_remixer_title_consistency;
 pub mod meta_required_fields_present;
 pub mod path_matches_canonical;
+pub mod text_field;
 pub mod title_mix_suffix_style;
 pub mod title_no_featuring_token;
 pub mod title_no_original_mix;

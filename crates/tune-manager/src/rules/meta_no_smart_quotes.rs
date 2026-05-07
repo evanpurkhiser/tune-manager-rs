@@ -1,6 +1,6 @@
 use crate::{
     rule_metadata,
-    rules::{RuleMetadata, RuleViolation, TrackRule},
+    rules::{RuleMetadata, RuleViolation, TextField, TrackRule},
     track::Track,
 };
 
@@ -18,55 +18,6 @@ static METADATA: RuleMetadata = rule_metadata! {
         - Artist “Name” (contains curly quotes)
     "#,
 };
-
-#[derive(Copy, Clone)]
-enum TextField {
-    Artist,
-    Title,
-    Album,
-    Remixer,
-    Publisher,
-}
-
-impl TextField {
-    fn name(self) -> &'static str {
-        match self {
-            Self::Artist => "artist",
-            Self::Title => "title",
-            Self::Album => "album",
-            Self::Remixer => "remixer",
-            Self::Publisher => "publisher",
-        }
-    }
-
-    fn get(self, track: &Track) -> Option<&str> {
-        match self {
-            Self::Artist => track.tags.artist.as_deref(),
-            Self::Title => track.tags.title.as_deref(),
-            Self::Album => track.tags.album.as_deref(),
-            Self::Remixer => track.tags.remixer.as_deref(),
-            Self::Publisher => track.tags.publisher.as_deref(),
-        }
-    }
-
-    fn set(self, track: &mut Track, value: String) {
-        match self {
-            Self::Artist => track.tags.artist = Some(value),
-            Self::Title => track.tags.title = Some(value),
-            Self::Album => track.tags.album = Some(value),
-            Self::Remixer => track.tags.remixer = Some(value),
-            Self::Publisher => track.tags.publisher = Some(value),
-        }
-    }
-}
-
-const FIELDS: [TextField; 5] = [
-    TextField::Artist,
-    TextField::Title,
-    TextField::Album,
-    TextField::Remixer,
-    TextField::Publisher,
-];
 
 fn replace_smart_quotes(s: &str) -> String {
     s.chars()
@@ -91,7 +42,7 @@ impl TrackRule for MetaNoSmartQuotesRule {
     }
 
     fn check(&self, track: &Track) -> Vec<RuleViolation> {
-        FIELDS
+        TextField::ALL
             .into_iter()
             .filter(|field| field.get(track).is_some_and(has_smart_quotes))
             .map(|field| {
