@@ -36,17 +36,29 @@ impl TrackRule for ArtistFeatStandardizationRule {
         let Some(artist) = track.tags.artist.as_deref() else {
             return vec![];
         };
-        if let Some(cap) = FEAT_VARIANT_RE.captures(artist) {
-            let token = cap
-                .get(1)
-                .map(|m| m.as_str().to_ascii_lowercase())
-                .unwrap_or_default();
-            if token != "ft." {
-                return vec![self.error("Featuring token should be canonical Ft.")];
-            }
+        let Some(cap) = FEAT_VARIANT_RE.captures(artist) else {
+            return vec![];
+        };
+        let token = cap
+            .get(1)
+            .map(|m| m.as_str().to_ascii_lowercase())
+            .unwrap_or_default();
+        if token == "ft." {
+            return vec![];
         }
-        vec![]
+        vec![
+            self.error("Featuring token should be canonical Ft.")
+                .with_fix(|track| {
+                    if let Some(artist) = track.tags.artist.as_deref() {
+                        track.tags.artist = Some(standardize_feat(artist));
+                    }
+                }),
+        ]
     }
+}
+
+fn standardize_feat(artist: &str) -> String {
+    FEAT_VARIANT_RE.replace_all(artist, " Ft. ").to_string()
 }
 
 #[cfg(test)]
@@ -66,5 +78,33 @@ mod tests {
         let mut track = make_track();
         track.tags.artist = Some("A feat. B".to_string());
         assert_eq!(ArtistFeatStandardizationRule.check(&track).len(), 1);
+    }
+
+    fn fixed_artist(input: &str) -> String {
+        let mut track = make_track();
+        track.tags.artist = Some(input.to_string());
+        let violations = ArtistFeatStandardizationRule.check(&track);
+        violations[0].fix.as_ref().unwrap().apply(&mut track);
+        track.tags.artist.unwrap()
+    }
+
+    #[test]
+    fn fix_feat_dot() {
+        assert_eq!(fixed_artist("A feat. B"), "A Ft. B");
+    }
+
+    #[test]
+    fn fix_featuring() {
+        assert_eq!(fixed_artist("A featuring B"), "A Ft. B");
+    }
+
+    #[test]
+    fn fix_ft_no_dot() {
+        assert_eq!(fixed_artist("A ft B"), "A Ft. B");
+    }
+
+    #[test]
+    fn fix_uppercase() {
+        assert_eq!(fixed_artist("A FEAT B"), "A Ft. B");
     }
 }
