@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 
 use crate::{
     rule_metadata,
-    rules::{RuleMetadata, RuleViolation, TrackRule},
+    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -57,7 +57,7 @@ fn strip_original_mix(title: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::TitleNoOriginalMixRule;
-    use crate::rules::{TrackRule, test_utils::make_track};
+    use crate::linter::{TrackRule, test_utils::make_track};
 
     #[test]
     fn ok_case() {

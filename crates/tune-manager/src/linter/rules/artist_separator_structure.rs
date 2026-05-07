@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 
 use crate::{
     rule_metadata,
-    rules::{RuleMetadata, RuleViolation, TrackRule},
+    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -60,9 +60,9 @@ impl TrackRule for ArtistSeparatorStructureRule {
 #[cfg(test)]
 mod tests {
     use super::ArtistSeparatorStructureRule;
-    use crate::rules::{TrackRule, test_utils::make_track};
+    use crate::linter::{TrackRule, test_utils::make_track};
 
-    fn check_with(artist: &str) -> Vec<crate::rules::RuleViolation> {
+    fn check_with(artist: &str) -> Vec<crate::linter::RuleViolation> {
         let mut track = make_track();
         track.tags.artist = Some(artist.to_string());
         ArtistSeparatorStructureRule.check(&track)

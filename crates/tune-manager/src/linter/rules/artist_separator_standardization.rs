@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 
 use crate::{
     rule_metadata,
-    rules::{RuleMetadata, RuleViolation, TrackRule},
+    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -68,7 +68,7 @@ fn standardize_separators(artist: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::ArtistSeparatorStandardizationRule;
-    use crate::rules::{TrackRule, test_utils::make_track};
+    use crate::linter::{TrackRule, test_utils::make_track};
 
     #[test]
     fn ok_case() {

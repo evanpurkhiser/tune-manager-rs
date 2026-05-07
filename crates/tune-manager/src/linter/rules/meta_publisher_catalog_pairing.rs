@@ -1,6 +1,6 @@
 use crate::{
     rule_metadata,
-    rules::{RuleMetadata, RuleViolation, TrackRule},
+    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -57,7 +57,7 @@ impl TrackRule for MetaPublisherCatalogPairingRule {
 #[cfg(test)]
 mod tests {
     use super::MetaPublisherCatalogPairingRule;
-    use crate::rules::{RuleSeverity, TrackRule, test_utils::make_track};
+    use crate::linter::{RuleSeverity, TrackRule, test_utils::make_track};
 
     #[test]
     fn ok_both_present() {

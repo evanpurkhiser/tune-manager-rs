@@ -1,7 +1,7 @@
 use crate::{
     fields::CountField,
     rule_metadata,
-    rules::{RuleMetadata, RuleViolation, TrackRule},
+    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -44,7 +44,7 @@ mod tests {
     use super::DiscCountFormatRule;
     use crate::{
         fields::CountField,
-        rules::{TrackRule, test_utils::make_track},
+        linter::{TrackRule, test_utils::make_track},
     };
 
     #[test]

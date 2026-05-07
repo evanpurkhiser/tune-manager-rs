@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::{
     rule_metadata,
-    rules::{RuleMetadata, RuleViolation, TrackRule},
+    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -48,7 +48,7 @@ impl TrackRule for FileSupportedExtensionRule {
 mod tests {
     use std::path::PathBuf;
 
-    use crate::rules::{TrackRule, test_utils::make_track};
+    use crate::linter::{TrackRule, test_utils::make_track};
 
     use super::FileSupportedExtensionRule;
 

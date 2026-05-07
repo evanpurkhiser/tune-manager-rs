@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 
 use crate::{
     rule_metadata,
-    rules::{RuleMetadata, RuleViolation, TrackRule},
+    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -52,7 +52,7 @@ impl TrackRule for BpmNumericRule {
 #[cfg(test)]
 mod tests {
     use super::BpmNumericRule;
-    use crate::rules::{TrackRule, test_utils::make_track};
+    use crate::linter::{TrackRule, test_utils::make_track};
 
     #[test]
     fn ok_case() {

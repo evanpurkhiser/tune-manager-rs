@@ -1,6 +1,6 @@
 use crate::{
     rule_metadata,
-    rules::{RuleMetadata, RuleViolation, TextField, TrackRule},
+    linter::{RuleMetadata, RuleViolation, TextField, TrackRule},
     track::Track,
 };
 
@@ -60,7 +60,7 @@ impl TrackRule for MetaNoSmartQuotesRule {
 #[cfg(test)]
 mod tests {
     use super::MetaNoSmartQuotesRule;
-    use crate::rules::{TrackRule, test_utils::make_track};
+    use crate::linter::{TrackRule, test_utils::make_track};
 
     #[test]
     fn ok_case() {

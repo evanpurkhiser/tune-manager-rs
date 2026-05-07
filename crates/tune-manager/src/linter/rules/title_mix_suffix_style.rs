@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 
 use crate::{
     rule_metadata,
-    rules::{RuleMetadata, RuleViolation, TrackRule},
+    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -65,6 +65,7 @@ fn canonicalize_mix_suffix(title: &str) -> String {
         .to_string()
 }
 
+// REVIEW: Let's pull in a crate for this
 fn title_case(s: &str) -> String {
     let mut chars = s.chars();
     match chars.next() {
@@ -76,7 +77,7 @@ fn title_case(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::TitleMixSuffixStyleRule;
-    use crate::rules::{TrackRule, test_utils::make_track};
+    use crate::linter::{TrackRule, test_utils::make_track};
 
     #[test]
     fn ok_case() {
@@ -117,6 +118,9 @@ mod tests {
 
     #[test]
     fn fix_preserves_artist_casing() {
-        assert_eq!(fixed_title("Song (deadmau5 remix)"), "Song (deadmau5 Remix)");
+        assert_eq!(
+            fixed_title("Song (deadmau5 remix)"),
+            "Song (deadmau5 Remix)"
+        );
     }
 }
