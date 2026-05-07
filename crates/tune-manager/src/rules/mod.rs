@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::track::Track;
 
 pub mod album_requires_disc;
@@ -31,11 +33,46 @@ pub enum RuleSeverity {
     Warn,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct RuleViolation {
     pub rule_id: &'static str,
     pub severity: RuleSeverity,
     pub message: String,
+    /// Optional autofix that mutates a [`Track`] to resolve this violation.
+    /// Absent when the violation cannot be safely fixed without human input.
+    pub fix: Option<Fix>,
+}
+
+impl RuleViolation {
+    /// Attach an autofix closure to this violation. The closure receives the
+    /// current track state (which may already reflect prior fixes from the
+    /// same pass) and mutates it in place.
+    pub fn with_fix<F>(mut self, fix: F) -> Self
+    where
+        F: Fn(&mut Track) + Send + Sync + 'static,
+    {
+        self.fix = Some(Fix(Arc::new(fix)));
+        self
+    }
+}
+
+/// A deferred mutation that resolves a [`RuleViolation`]. Wrapped so the
+/// engine can chain multiple fixes against the same field without needing
+/// each rule to know what others might have rewritten — every closure reads
+/// the current track state when it runs.
+#[derive(Clone)]
+pub struct Fix(Arc<dyn Fn(&mut Track) + Send + Sync>);
+
+impl Fix {
+    pub fn apply(&self, track: &mut Track) {
+        (self.0)(track);
+    }
+}
+
+impl std::fmt::Debug for Fix {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Fix(<closure>)")
+    }
 }
 
 /// Static metadata describing a rule. Each rule defines a single `METADATA`
@@ -74,6 +111,7 @@ pub trait TrackRule: Send + Sync {
             rule_id: self.metadata().id,
             severity: RuleSeverity::Error,
             message: message.into(),
+            fix: None,
         }
     }
 
@@ -86,6 +124,7 @@ pub trait TrackRule: Send + Sync {
             rule_id: self.metadata().id,
             severity: RuleSeverity::Warn,
             message: message.into(),
+            fix: None,
         }
     }
 }
