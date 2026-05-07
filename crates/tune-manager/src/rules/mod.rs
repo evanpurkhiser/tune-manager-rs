@@ -12,6 +12,7 @@ pub mod key_canonical_camelot;
 pub mod meta_no_smart_quotes;
 pub mod meta_publisher_catalog_pairing;
 pub mod meta_remixer_title_consistency;
+pub mod meta_required_fields_present;
 pub mod path_matches_canonical;
 pub mod title_mix_suffix_style;
 pub mod title_no_featuring_token;
@@ -100,6 +101,7 @@ pub fn track_only_rules() -> Vec<Box<dyn TrackRule>> {
         Box::new(disc_requires_track::DiscRequiresTrackRule),
         Box::new(track_requires_disc::TrackRequiresDiscRule),
         Box::new(meta_publisher_catalog_pairing::MetaPublisherCatalogPairingRule),
+        Box::new(meta_required_fields_present::MetaRequiredFieldsPresentRule),
         Box::new(meta_no_smart_quotes::MetaNoSmartQuotesRule),
         Box::new(title_mix_suffix_style::TitleMixSuffixStyleRule),
         Box::new(title_no_original_mix::TitleNoOriginalMixRule),

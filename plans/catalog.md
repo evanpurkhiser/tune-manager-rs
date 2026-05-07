@@ -94,9 +94,11 @@ normalization, and lowercase extension normalization.
 
 ### C. Metadata completeness and formatting
 
-#### `meta.required_fields_present`
-    - Track only: No.
-    - Required metadata fields must be present (initially: `artist`, `title`).
+#### `meta.required-fields-present`
+    - Track only: Yes.
+    - Required metadata fields must be present and non-empty (initially: `artist`, `title`).
+    - Severity: `error`.
+    - Autofix: no.
 
 #### `artist.known_value`
     - Track only: No.
