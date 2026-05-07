@@ -207,7 +207,8 @@ Rules to encode:
 
 #### `artist.separator-standardization`
     - Track only: Yes.
-    - Use one canonical joining style for collaborations (for example `Artist A & Artist B`).
+    - Token-level: reject non-canonical connector tokens (for example `and`, `vs.`).
+    - Pairs with `artist.separator-structure`, which handles arrangement and count-aware separator choice.
 
 #### `artist.feat-standardization`
     - Track only: Yes.
@@ -221,9 +222,12 @@ Rules to encode:
     - Track only: No.
     - Keep remixer names aligned with canonical artist names.
 
-#### `artist.split-token-hygiene`
+#### `artist.separator-structure`
     - Track only: Yes.
-    - No dangling separators, duplicate separators, or inconsistent spacing around separators.
+    - Validates the arrangement of separators between artist segments.
+    - Hygiene: no dangling separators, duplicate separators, or inconsistent spacing.
+    - Any mix of canonical separators (`,`, `vs`, `&`) is allowed; choice is left to the writer (e.g. `Technikore vs Dougal & Gammer`, `Aly & Fila, Lostly`).
+    - Replaces the earlier `artist.split-token-hygiene`.
 
 ### E. Optional quality rules (later)
 
@@ -310,6 +314,7 @@ Indexes:
    - `path.matches_canonical`
    - `artist.feat-standardization`
    - `artist.separator-standardization`
+   - `artist.separator-structure`
    - `key.canonical-camelot`
 4. Add fix mode for safe rewrites.
 5. Add configurable rule packs and per-rule allowlists/overrides.

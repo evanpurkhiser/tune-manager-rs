@@ -68,8 +68,9 @@ You MUST produce JSON that matches the provided schema.
 ARTIST FORMATTING
 - The vocalist belongs only in the artist field, never in the title.
 - Append vocalists as `Ft. Name` (with a period).
-- Two artists: join with `&` or `vs` (preserve whichever form is present).
-- Three or more artists: join with commas.
+- Join collaborating artists with `,`, `vs`, or `&`. Preserve the writer's
+  choice when it appears intentional; mixed separators are allowed (e.g.
+  `Aly & Fila, Lostly` or `Technikore vs Dougal & Gammer`).
 - Apply the same formatting rules to remixers.
 
 TITLE CLEANUP

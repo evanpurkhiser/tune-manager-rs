@@ -19,11 +19,15 @@ static METADATA: RuleMetadata = rule_metadata! {
         Invalid:
         - A and B (use &)
         - A vs. B (use vs without period)
+        - A versus B (use vs)
     "#,
 };
 
-static NON_CANON_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\s(and|vs\.)\s").unwrap());
+static NON_CANON_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)\s(and|vs\.|versus)\s").unwrap());
 
+// TODO: apply this rule to the `remixer` field too. The cleanest path is a
+// shared `ArtistField` selector enum and registering this rule twice.
 pub struct ArtistSeparatorStandardizationRule;
 
 impl TrackRule for ArtistSeparatorStandardizationRule {
@@ -58,6 +62,13 @@ mod tests {
     fn fail_case() {
         let mut track = make_track();
         track.tags.artist = Some("A and B".to_string());
+        assert_eq!(ArtistSeparatorStandardizationRule.check(&track).len(), 1);
+    }
+
+    #[test]
+    fn fail_versus() {
+        let mut track = make_track();
+        track.tags.artist = Some("A versus B".to_string());
         assert_eq!(ArtistSeparatorStandardizationRule.check(&track).len(), 1);
     }
 }

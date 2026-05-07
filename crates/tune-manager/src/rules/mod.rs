@@ -3,7 +3,7 @@ use crate::track::Track;
 pub mod album_requires_disc;
 pub mod artist_feat_standardization;
 pub mod artist_separator_standardization;
-pub mod artist_split_token_hygiene;
+pub mod artist_separator_structure;
 pub mod bpm_numeric;
 pub mod disc_count_format;
 pub mod disc_requires_track;
@@ -22,7 +22,11 @@ pub mod year_format;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuleSeverity {
+    /// A hard violation that must be resolved before a track is allowed to
+    /// belong in the catalog.
     Error,
+    /// A soft signal that may not require action — surfaced for review but
+    /// does not block acceptance.
     Warn,
 }
 
@@ -102,8 +106,8 @@ pub fn track_only_rules() -> Vec<Box<dyn TrackRule>> {
         Box::new(title_no_featuring_token::TitleNoFeaturingTokenRule),
         Box::new(meta_remixer_title_consistency::MetaRemixerTitleConsistencyRule),
         Box::new(artist_separator_standardization::ArtistSeparatorStandardizationRule),
+        Box::new(artist_separator_structure::ArtistSeparatorStructureRule),
         Box::new(artist_feat_standardization::ArtistFeatStandardizationRule),
-        Box::new(artist_split_token_hygiene::ArtistSplitTokenHygieneRule),
         Box::new(year_format::YearFormatRule),
         Box::new(bpm_numeric::BpmNumericRule),
     ]
