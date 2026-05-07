@@ -7,15 +7,21 @@ use crate::{
 static METADATA: RuleMetadata = rule_metadata! {
     id: "meta.publisher-catalog-pairing",
     description: r#"
-        Publisher and catalog_id must be coupled.
+        Publisher and catalog_id usually appear together. The two directions
+        carry different weight:
+
+        - A publisher without a catalog_id is a soft signal — the catalog
+          number may legitimately be unknown. Warn so it surfaces for review.
+        - A catalog_id without a publisher is a hard error — an orphan
+          catalog number with no label is a data-integrity hole.
 
         Valid:
         - publisher=Label, catalog_id=RLS001
-        - publisher=Label, catalog_id=--
+        - both missing
 
         Invalid:
-        - publisher=Label, catalog_id missing (expected -- when unknown)
-        - catalog_id=RLS001, publisher missing
+        - publisher=Label, catalog_id missing  (warn)
+        - catalog_id=RLS001, publisher missing  (error)
     "#,
 };
 
@@ -41,10 +47,7 @@ impl TrackRule for MetaPublisherCatalogPairingRule {
             .filter(|v| !v.is_empty());
 
         match (publisher, catalog_id) {
-            (Some(_), None) => {
-                vec![self.error("Publisher is present but catalog_id is missing (expected --)")]
-            }
-            (Some(_), Some("--")) => vec![],
+            (Some(_), None) => vec![self.warn("Publisher is present but catalog_id is missing")],
             (None, Some(_)) => vec![self.error("Catalog_id is present but publisher is missing")],
             _ => vec![],
         }
@@ -54,10 +57,10 @@ impl TrackRule for MetaPublisherCatalogPairingRule {
 #[cfg(test)]
 mod tests {
     use super::MetaPublisherCatalogPairingRule;
-    use crate::rules::{TrackRule, test_utils::make_track};
+    use crate::rules::{RuleSeverity, TrackRule, test_utils::make_track};
 
     #[test]
-    fn ok_case() {
+    fn ok_both_present() {
         assert!(
             MetaPublisherCatalogPairingRule
                 .check(&make_track())
@@ -66,23 +69,37 @@ mod tests {
     }
 
     #[test]
-    fn fail_case() {
+    fn ok_both_missing() {
         let mut track = make_track();
+        track.tags.publisher = None;
         track.tags.catalog_id = None;
-        assert_eq!(MetaPublisherCatalogPairingRule.check(&track).len(), 1);
-    }
-
-    #[test]
-    fn ok_sentinel_case() {
-        let mut track = make_track();
-        track.tags.catalog_id = Some("--".to_string());
         assert!(MetaPublisherCatalogPairingRule.check(&track).is_empty());
     }
 
     #[test]
-    fn fail_whitespace_catalog() {
+    fn warn_publisher_without_catalog() {
+        let mut track = make_track();
+        track.tags.catalog_id = None;
+        let violations = MetaPublisherCatalogPairingRule.check(&track);
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].severity, RuleSeverity::Warn);
+    }
+
+    #[test]
+    fn error_catalog_without_publisher() {
+        let mut track = make_track();
+        track.tags.publisher = None;
+        let violations = MetaPublisherCatalogPairingRule.check(&track);
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].severity, RuleSeverity::Error);
+    }
+
+    #[test]
+    fn warn_whitespace_catalog() {
         let mut track = make_track();
         track.tags.catalog_id = Some("   ".to_string());
-        assert_eq!(MetaPublisherCatalogPairingRule.check(&track).len(), 1);
+        let violations = MetaPublisherCatalogPairingRule.check(&track);
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].severity, RuleSeverity::Warn);
     }
 }

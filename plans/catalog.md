@@ -151,11 +151,12 @@ normalization, and lowercase extension normalization.
 
 #### `meta.publisher-catalog-pairing`
     - Track only: Yes.
-    - `publisher` and `catalog_id` must be coupled.
-    - If `publisher` is present and source data has no catalog number, set `catalog_id` to sentinel `--`.
-    - If `catalog_id` is present, `publisher` must also be present (except explicit allowlist cases if needed later).
-    - Severity: `warn` (can be elevated to `error` once collection normalized).
-    - Autofix: yes for missing-catalog case (`catalog_id` -> `--`), otherwise no.
+    - Warn when `publisher` is present without `catalog_id`. Catalog numbers
+      are often genuinely unknown, so this is a soft signal for review rather
+      than a hard failure.
+    - Error when `catalog_id` is present without `publisher`. An orphan
+      catalog number with no label is a data-integrity hole.
+    - Autofix: no. Resolution requires looking up the missing field.
 
 #### `publisher.known_value`
     - Track only: No.
@@ -331,5 +332,6 @@ Indexes:
 ## Session Decisions
 
 - `catalog.media_hash_present` is approved and should be enforced as an integrity rule.
-- `meta.publisher-catalog-pairing` is approved.
-- Sentinel for "no catalog number" is `catalog_id = --` when publisher is present.
+- `meta.publisher-catalog-pairing` is approved. The `--` sentinel for unknown
+  catalog numbers is dropped — missing catalog with publisher present is a
+  warn, not a sentinel-triggering error.
