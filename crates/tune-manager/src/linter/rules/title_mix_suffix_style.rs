@@ -22,8 +22,6 @@ static METADATA: RuleMetadata = rule_metadata! {
     "#,
 };
 
-static MIX_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\(([^\)]*?)\s(Remix|Edit|Mix|Version)\)").unwrap());
 static FUZZY_MIX_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)\(([^\)]*?)\s(remix|edit|mix|version)\)").unwrap());
 
@@ -38,10 +36,10 @@ impl TrackRule for TitleMixSuffixStyleRule {
         let Some(title) = track.tags.title.as_deref() else {
             return vec![];
         };
-        if MIX_RE.is_match(title) {
-            return vec![];
-        }
-        if !FUZZY_MIX_RE.is_match(title) {
+        let any_non_canonical = FUZZY_MIX_RE
+            .captures_iter(title)
+            .any(|caps| caps[2] != title_case(&caps[2]));
+        if !any_non_canonical {
             return vec![];
         }
         vec![
@@ -121,6 +119,21 @@ mod tests {
         assert_eq!(
             fixed_title("Song (deadmau5 remix)"),
             "Song (deadmau5 Remix)"
+        );
+    }
+
+    #[test]
+    fn fail_when_one_group_canonical_and_one_not() {
+        let mut track = make_track();
+        track.tags.title = Some("Song (artist remix) (Foo Edit)".to_string());
+        assert_eq!(TitleMixSuffixStyleRule.check(&track).len(), 1);
+    }
+
+    #[test]
+    fn fix_only_non_canonical_groups() {
+        assert_eq!(
+            fixed_title("Song (artist remix) (Foo Edit)"),
+            "Song (artist Remix) (Foo Edit)"
         );
     }
 }
