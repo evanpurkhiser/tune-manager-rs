@@ -47,38 +47,38 @@ impl TrackRule for KeyCanonicalCamelotRule {
         let Some(key) = track.tags.key.as_deref() else {
             return vec![];
         };
-        let trimmed = key.trim();
+        let key = key.trim();
 
-        if CANONICAL_RE.is_match(trimmed) {
+        if CANONICAL_RE.is_match(key) {
             return vec![];
         }
 
-        if let Some(canonical) = parse_camelot(trimmed) {
+        if let Some(canonical) = parse_camelot(key) {
             return vec![
                 self.error(format!(
-                    "Key `{trimmed}` is non-canonical Camelot; should be `{canonical}`"
+                    "Key `{key}` is non-canonical Camelot; should be `{canonical}`"
                 ))
                 .with_fix(fix_to_canonical_camelot),
             ];
         }
-        if let Some(canonical) = parse_openkey(trimmed) {
+        if let Some(canonical) = parse_openkey(key) {
             return vec![
                 self.error(format!(
-                    "Key `{trimmed}` is OpenKey notation; canonical Camelot is `{canonical}`"
+                    "Key `{key}` is OpenKey notation; canonical Camelot is `{canonical}`"
                 ))
                 .with_fix(fix_to_canonical_camelot),
             ];
         }
-        if let Some(canonical) = parse_musical(trimmed) {
+        if let Some(canonical) = parse_musical(key) {
             return vec![
                 self.error(format!(
-                    "Key `{trimmed}` is musical notation; canonical Camelot is `{canonical}`"
+                    "Key `{key}` is musical notation; canonical Camelot is `{canonical}`"
                 ))
                 .with_fix(fix_to_canonical_camelot),
             ];
         }
 
-        vec![self.error(format!("Key `{trimmed}` is not in a recognized notation"))]
+        vec![self.error(format!("Key `{key}` is not in a recognized notation"))]
     }
 }
 

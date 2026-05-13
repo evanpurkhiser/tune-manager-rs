@@ -7,21 +7,15 @@ use crate::{
 static METADATA: RuleMetadata = rule_metadata! {
     id: "meta.publisher-catalog-pairing",
     description: r#"
-        Publisher and catalog_id usually appear together. The two directions
-        carry different weight:
-
-        - A publisher without a catalog_id is a soft signal — the catalog
-          number may legitimately be unknown. Warn so it surfaces for review.
-        - A catalog_id without a publisher is a hard error — an orphan
-          catalog number with no label is a data-integrity hole.
+        Publisher and catalog_id should be coupled.
 
         Valid:
         - publisher=Label, catalog_id=RLS001
         - both missing
 
         Invalid:
-        - publisher=Label, catalog_id missing  (warn)
-        - catalog_id=RLS001, publisher missing  (error)
+        - publisher=Label, catalog_id missing (warn — catalog number may legitimately be unknown)
+        - catalog_id=RLS001, publisher missing (error — orphan catalog number with no label)
     "#,
 };
 

@@ -7,11 +7,8 @@ use crate::{
 static METADATA: RuleMetadata = rule_metadata! {
     id: "meta.required-fields-present",
     description: r#"
-        Required metadata fields must be present and non-empty.
-
-        Required fields:
-        - artist
-        - title
+        Required metadata fields (artist, title) must be present and
+        non-empty.
 
         Valid:
         - artist=Artist, title=Title
