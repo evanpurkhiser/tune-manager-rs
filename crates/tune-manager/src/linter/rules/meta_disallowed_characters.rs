@@ -5,9 +5,10 @@ use crate::{
 };
 
 static METADATA: RuleMetadata = rule_metadata! {
-    id: "meta.no-smart-quotes",
+    id: "meta.disallowed-characters",
     description: r#"
-        Text metadata must not contain smart quote characters.
+        Text metadata must not contain disallowed characters. Currently
+        covers smart quotes.
 
         Valid:
         - Don't Stop
@@ -18,7 +19,7 @@ static METADATA: RuleMetadata = rule_metadata! {
         - Artist “Name” (contains curly quotes)
     "#,
     autofix_notes: r#"
-        Replaces smart quotes in every affected text field:
+        Replaces disallowed characters in every affected text field:
         - `“` `”` → `"`
         - `‘` `’` `´` `` ` `` → `'`
 
@@ -27,7 +28,7 @@ static METADATA: RuleMetadata = rule_metadata! {
     "#,
 };
 
-fn replace_smart_quotes(s: &str) -> String {
+fn replace_disallowed(s: &str) -> String {
     s.chars()
         .map(|c| match c {
             '“' | '”' => '"',
@@ -37,14 +38,14 @@ fn replace_smart_quotes(s: &str) -> String {
         .collect()
 }
 
-fn has_smart_quotes(s: &str) -> bool {
+fn has_disallowed(s: &str) -> bool {
     s.chars()
         .any(|c| matches!(c, '“' | '”' | '‘' | '’' | '´' | '`'))
 }
 
-pub struct MetaNoSmartQuotesRule;
+pub struct MetaDisallowedCharactersRule;
 
-impl TrackRule for MetaNoSmartQuotesRule {
+impl TrackRule for MetaDisallowedCharactersRule {
     fn metadata(&self) -> &'static RuleMetadata {
         &METADATA
     }
@@ -52,12 +53,12 @@ impl TrackRule for MetaNoSmartQuotesRule {
     fn check(&self, track: &Track) -> Vec<RuleViolation> {
         TextField::ALL
             .into_iter()
-            .filter(|field| field.get(track).is_some_and(has_smart_quotes))
+            .filter(|field| field.get(track).is_some_and(has_disallowed))
             .map(|field| {
-                self.error(format!("Smart quotes in `{}`", field.name()))
+                self.error(format!("Disallowed characters in `{}`", field.name()))
                     .with_fix(move |track| {
                         if let Some(value) = field.get(track) {
-                            field.set(track, replace_smart_quotes(value));
+                            field.set(track, replace_disallowed(value));
                         }
                     })
             })
@@ -67,19 +68,19 @@ impl TrackRule for MetaNoSmartQuotesRule {
 
 #[cfg(test)]
 mod tests {
-    use super::MetaNoSmartQuotesRule;
+    use super::MetaDisallowedCharactersRule;
     use crate::linter::{TrackRule, test_utils::make_track};
 
     #[test]
     fn ok_case() {
-        assert!(MetaNoSmartQuotesRule.check(&make_track()).is_empty());
+        assert!(MetaDisallowedCharactersRule.check(&make_track()).is_empty());
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
         track.tags.title = Some("Don’t Stop".to_string());
-        assert_eq!(MetaNoSmartQuotesRule.check(&track).len(), 1);
+        assert_eq!(MetaDisallowedCharactersRule.check(&track).len(), 1);
     }
 
     #[test]
@@ -87,7 +88,7 @@ mod tests {
         let mut track = make_track();
         track.tags.title = Some("Don’t Stop".to_string());
         track.tags.album = Some("“Greatest Hits”".to_string());
-        assert_eq!(MetaNoSmartQuotesRule.check(&track).len(), 2);
+        assert_eq!(MetaDisallowedCharactersRule.check(&track).len(), 2);
     }
 
     #[test]
@@ -95,7 +96,7 @@ mod tests {
         let mut track = make_track();
         track.tags.title = Some("Don’t Stop".to_string());
         track.tags.album = Some("Album".to_string());
-        let violations = MetaNoSmartQuotesRule.check(&track);
+        let violations = MetaDisallowedCharactersRule.check(&track);
         assert_eq!(violations.len(), 1);
         violations[0].fix.as_ref().unwrap().apply(&mut track);
         assert_eq!(track.tags.title.as_deref(), Some("Don't Stop"));
@@ -106,7 +107,7 @@ mod tests {
     fn fix_double_smart_quotes() {
         let mut track = make_track();
         track.tags.title = Some("“Hello”".to_string());
-        let violations = MetaNoSmartQuotesRule.check(&track);
+        let violations = MetaDisallowedCharactersRule.check(&track);
         violations[0].fix.as_ref().unwrap().apply(&mut track);
         assert_eq!(track.tags.title.as_deref(), Some(r#""Hello""#));
     }
@@ -115,7 +116,7 @@ mod tests {
     fn fix_backtick_and_acute() {
         let mut track = make_track();
         track.tags.title = Some("It`s ´ok´".to_string());
-        let violations = MetaNoSmartQuotesRule.check(&track);
+        let violations = MetaDisallowedCharactersRule.check(&track);
         violations[0].fix.as_ref().unwrap().apply(&mut track);
         assert_eq!(track.tags.title.as_deref(), Some("It's 'ok'"));
     }
@@ -125,7 +126,7 @@ mod tests {
         let mut track = make_track();
         track.tags.title = Some("Don’t Stop".to_string());
         track.tags.artist = Some("A’B".to_string());
-        let violations = MetaNoSmartQuotesRule.check(&track);
+        let violations = MetaDisallowedCharactersRule.check(&track);
         for v in &violations {
             v.fix.as_ref().unwrap().apply(&mut track);
         }

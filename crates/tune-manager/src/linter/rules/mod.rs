@@ -9,7 +9,7 @@ pub mod disc_count_format;
 pub mod disc_requires_track;
 pub mod file_supported_extension;
 pub mod key_canonical_camelot;
-pub mod meta_no_smart_quotes;
+pub mod meta_disallowed_characters;
 pub mod meta_publisher_catalog_pairing;
 pub mod meta_remixer_title_consistency;
 pub mod meta_required_fields_present;
@@ -35,7 +35,7 @@ pub fn track_only_rules() -> Vec<Box<dyn TrackRule>> {
         Box::new(meta_publisher_catalog_pairing::MetaPublisherCatalogPairingRule),
         Box::new(meta_required_fields_present::MetaRequiredFieldsPresentRule),
         Box::new(meta_text_trimmed::MetaTextTrimmedRule),
-        Box::new(meta_no_smart_quotes::MetaNoSmartQuotesRule),
+        Box::new(meta_disallowed_characters::MetaDisallowedCharactersRule),
         Box::new(title_mix_suffix_style::TitleMixSuffixStyleRule),
         Box::new(title_no_original_mix::TitleNoOriginalMixRule),
         Box::new(title_no_featuring_token::TitleNoFeaturingTokenRule),

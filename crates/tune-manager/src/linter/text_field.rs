@@ -1,7 +1,7 @@
 use crate::track::Track;
 
 /// Free-text tag fields. Used by rules that emit per-field violations
-/// (e.g. smart-quote normalization, name canonicalization) so the rule
+/// (e.g. secial character normalization, name canonicalization) so the rule
 /// can iterate fields uniformly and each fix can target one specific
 /// field without the rule re-implementing the field plumbing.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

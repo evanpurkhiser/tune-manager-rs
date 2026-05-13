@@ -173,9 +173,10 @@ normalization, and lowercase extension normalization.
     - Severity: `warn`.
     - Autofix: no (requires manual review).
 
-#### `meta.no-smart-quotes`
+#### `meta.disallowed-characters`
     - Track only: Yes.
-    - Smart quotes are not allowed in text fields; normalize to plain ASCII quotes/apostrophes.
+    - Reject characters that should not appear in text fields. Currently
+      covers smart quotes (normalize to plain ASCII quotes/apostrophes).
 
 #### `title.mix-suffix-style`
     - Track only: Yes.
