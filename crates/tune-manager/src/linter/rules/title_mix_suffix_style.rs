@@ -2,8 +2,8 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
+    linter::{LintResult, RuleMetadata, TrackRule},
     rule_metadata,
-    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -37,24 +37,23 @@ impl TrackRule for TitleMixSuffixStyleRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation> {
+    fn check(&self, track: &Track) -> LintResult {
         let Some(title) = track.tags.title.as_deref() else {
-            return vec![];
+            return LintResult::Passed;
         };
         let any_non_canonical = FUZZY_MIX_RE
             .captures_iter(title)
             .any(|caps| caps[2] != title_case(&caps[2]));
         if !any_non_canonical {
-            return vec![];
+            return LintResult::Passed;
         }
-        vec![
-            self.error("Title mix suffix is not canonical")
-                .with_fix(|track| {
-                    if let Some(title) = track.tags.title.as_deref() {
-                        track.tags.title = Some(canonicalize_mix_suffix(title));
-                    }
-                }),
-        ]
+        self.error("Title mix suffix is not canonical")
+            .with_fix(|track| {
+                if let Some(title) = track.tags.title.as_deref() {
+                    track.tags.title = Some(canonicalize_mix_suffix(title));
+                }
+            })
+            .into()
     }
 }
 
@@ -86,21 +85,25 @@ mod tests {
     fn ok_case() {
         let mut track = make_track();
         track.tags.title = Some("Song (Artist Remix)".to_string());
-        assert!(TitleMixSuffixStyleRule.check(&track).is_empty());
+        assert!(TitleMixSuffixStyleRule.check(&track).is_passed());
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
         track.tags.title = Some("Song (artist remix)".to_string());
-        assert_eq!(TitleMixSuffixStyleRule.check(&track).len(), 1);
+        assert_eq!(TitleMixSuffixStyleRule.check(&track).violations().len(), 1);
     }
 
     fn fixed_title(input: &str) -> String {
         let mut track = make_track();
         track.tags.title = Some(input.to_string());
-        let violations = TitleMixSuffixStyleRule.check(&track);
-        violations[0].fix.as_ref().unwrap().apply(&mut track);
+        let result = TitleMixSuffixStyleRule.check(&track);
+        result.violations()[0]
+            .fix
+            .as_ref()
+            .unwrap()
+            .apply(&mut track);
         track.tags.title.unwrap()
     }
 
@@ -131,7 +134,7 @@ mod tests {
     fn fail_when_one_group_canonical_and_one_not() {
         let mut track = make_track();
         track.tags.title = Some("Song (artist remix) (Foo Edit)".to_string());
-        assert_eq!(TitleMixSuffixStyleRule.check(&track).len(), 1);
+        assert_eq!(TitleMixSuffixStyleRule.check(&track).violations().len(), 1);
     }
 
     #[test]

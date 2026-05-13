@@ -1,7 +1,7 @@
 use crate::{
     fields::CountField,
+    linter::{LintResult, RuleMetadata, TrackRule},
     rule_metadata,
-    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -27,14 +27,14 @@ impl TrackRule for DiscCountFormatRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation> {
+    fn check(&self, track: &Track) -> LintResult {
         match track.tags.disc.as_ref() {
-            None => vec![],
-            Some(CountField::Invalid(_)) => vec![self.error("Disc number format is invalid")],
+            None => LintResult::Passed,
+            Some(CountField::Invalid(_)) => self.error("Disc number format is invalid").into(),
             Some(CountField::Valid(c)) if c.number == 0 || c.total == 0 || c.number > c.total => {
-                vec![self.error("Disc number is out of valid range")]
+                self.error("Disc number is out of valid range").into()
             }
-            Some(CountField::Valid(_)) => vec![],
+            Some(CountField::Valid(_)) => LintResult::Passed,
         }
     }
 }
@@ -49,13 +49,13 @@ mod tests {
 
     #[test]
     fn ok_case() {
-        assert!(DiscCountFormatRule.check(&make_track()).is_empty());
+        assert!(DiscCountFormatRule.check(&make_track()).is_passed());
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
         track.tags.disc = Some(CountField::Invalid("x".to_string()));
-        assert_eq!(DiscCountFormatRule.check(&track).len(), 1);
+        assert_eq!(DiscCountFormatRule.check(&track).violations().len(), 1);
     }
 }

@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use crate::{
+    linter::{LintResult, RuleMetadata, TrackRule},
     rule_metadata,
-    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -28,7 +28,7 @@ impl TrackRule for FileSupportedExtensionRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation> {
+    fn check(&self, track: &Track) -> LintResult {
         let supported: HashSet<&str> = ["mp3", "aiff"].into_iter().collect();
         let ext = track
             .metadata
@@ -38,8 +38,8 @@ impl TrackRule for FileSupportedExtensionRule {
             .map(|s| s.to_ascii_lowercase());
 
         match ext {
-            Some(ext) if supported.contains(ext.as_str()) => vec![],
-            _ => vec![self.error("File extension is not supported")],
+            Some(ext) if supported.contains(ext.as_str()) => LintResult::Passed,
+            _ => self.error("File extension is not supported").into(),
         }
     }
 }
@@ -55,15 +55,16 @@ mod tests {
     #[test]
     fn ok_case() {
         let track = make_track();
-        let violations = FileSupportedExtensionRule.check(&track);
-        assert!(violations.is_empty());
+        assert!(FileSupportedExtensionRule.check(&track).is_passed());
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
         track.metadata.file_path = PathBuf::from("x/test.ogg");
-        let violations = FileSupportedExtensionRule.check(&track);
-        assert_eq!(violations.len(), 1);
+        assert_eq!(
+            FileSupportedExtensionRule.check(&track).violations().len(),
+            1
+        );
     }
 }

@@ -2,8 +2,8 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
+    linter::{LintResult, RuleMetadata, TrackRule},
     rule_metadata,
-    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -31,15 +31,15 @@ impl TrackRule for YearFormatRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation> {
+    fn check(&self, track: &Track) -> LintResult {
         let Some(year) = track.tags.year.as_deref() else {
-            return vec![];
+            return LintResult::Passed;
         };
 
         if YEAR_RE.is_match(year) {
-            return vec![];
+            return LintResult::Passed;
         }
-        vec![self.error("Year must be in YYYY format")]
+        self.error("Year must be in YYYY format").into()
     }
 }
 
@@ -50,20 +50,20 @@ mod tests {
 
     #[test]
     fn ok_case() {
-        assert!(YearFormatRule.check(&make_track()).is_empty());
+        assert!(YearFormatRule.check(&make_track()).is_passed());
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
         track.tags.year = Some("15".to_string());
-        assert_eq!(YearFormatRule.check(&track).len(), 1);
+        assert_eq!(YearFormatRule.check(&track).violations().len(), 1);
     }
 
     #[test]
     fn fail_case_with_whitespace() {
         let mut track = make_track();
         track.tags.year = Some(" 2015 ".to_string());
-        assert_eq!(YearFormatRule.check(&track).len(), 1);
+        assert_eq!(YearFormatRule.check(&track).violations().len(), 1);
     }
 }

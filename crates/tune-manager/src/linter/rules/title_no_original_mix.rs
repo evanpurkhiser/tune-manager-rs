@@ -2,8 +2,8 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
+    linter::{LintResult, RuleMetadata, TrackRule},
     rule_metadata,
-    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -36,21 +36,20 @@ impl TrackRule for TitleNoOriginalMixRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation> {
+    fn check(&self, track: &Track) -> LintResult {
         let Some(title) = track.tags.title.as_deref() else {
-            return vec![];
+            return LintResult::Passed;
         };
         if !ORIGINAL_MIX_RE.is_match(title) {
-            return vec![];
+            return LintResult::Passed;
         }
-        vec![
-            self.error("Title should not include (Original Mix)")
-                .with_fix(|track| {
-                    if let Some(title) = track.tags.title.as_deref() {
-                        track.tags.title = Some(strip_original_mix(title));
-                    }
-                }),
-        ]
+        self.error("Title should not include (Original Mix)")
+            .with_fix(|track| {
+                if let Some(title) = track.tags.title.as_deref() {
+                    track.tags.title = Some(strip_original_mix(title));
+                }
+            })
+            .into()
     }
 }
 
@@ -65,21 +64,25 @@ mod tests {
 
     #[test]
     fn ok_case() {
-        assert!(TitleNoOriginalMixRule.check(&make_track()).is_empty());
+        assert!(TitleNoOriginalMixRule.check(&make_track()).is_passed());
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
         track.tags.title = Some("Song (Original Mix)".to_string());
-        assert_eq!(TitleNoOriginalMixRule.check(&track).len(), 1);
+        assert_eq!(TitleNoOriginalMixRule.check(&track).violations().len(), 1);
     }
 
     fn fixed_title(input: &str) -> String {
         let mut track = make_track();
         track.tags.title = Some(input.to_string());
-        let violations = TitleNoOriginalMixRule.check(&track);
-        violations[0].fix.as_ref().unwrap().apply(&mut track);
+        let result = TitleNoOriginalMixRule.check(&track);
+        result.violations()[0]
+            .fix
+            .as_ref()
+            .unwrap()
+            .apply(&mut track);
         track.tags.title.unwrap()
     }
 

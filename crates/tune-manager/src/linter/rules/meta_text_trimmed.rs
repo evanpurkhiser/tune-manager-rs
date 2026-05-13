@@ -1,5 +1,5 @@
 use crate::{
-    linter::{RuleMetadata, RuleViolation, TrackRule},
+    linter::{LintResult, RuleMetadata, TrackRule},
     rule_metadata,
     track::Track,
 };
@@ -95,7 +95,7 @@ impl TrackRule for MetaTextTrimmedRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation> {
+    fn check(&self, track: &Track) -> LintResult {
         FIELDS
             .iter()
             .filter(|f| {
@@ -112,7 +112,8 @@ impl TrackRule for MetaTextTrimmedRule {
                         }
                     })
             })
-            .collect()
+            .collect::<Vec<_>>()
+            .into()
     }
 }
 
@@ -123,21 +124,21 @@ mod tests {
 
     #[test]
     fn ok_case() {
-        assert!(MetaTextTrimmedRule.check(&make_track()).is_empty());
+        assert!(MetaTextTrimmedRule.check(&make_track()).is_passed());
     }
 
     #[test]
     fn fail_leading_space_in_artist() {
         let mut track = make_track();
         track.tags.artist = Some(" Artist".to_string());
-        assert_eq!(MetaTextTrimmedRule.check(&track).len(), 1);
+        assert_eq!(MetaTextTrimmedRule.check(&track).violations().len(), 1);
     }
 
     #[test]
     fn fail_trailing_space_in_title() {
         let mut track = make_track();
         track.tags.title = Some("Title ".to_string());
-        assert_eq!(MetaTextTrimmedRule.check(&track).len(), 1);
+        assert_eq!(MetaTextTrimmedRule.check(&track).violations().len(), 1);
     }
 
     #[test]
@@ -145,7 +146,7 @@ mod tests {
         let mut track = make_track();
         track.tags.artist = Some(" Artist ".to_string());
         track.tags.bpm = Some(" 128.5".to_string());
-        assert_eq!(MetaTextTrimmedRule.check(&track).len(), 2);
+        assert_eq!(MetaTextTrimmedRule.check(&track).violations().len(), 2);
     }
 
     #[test]
@@ -153,8 +154,12 @@ mod tests {
         let mut track = make_track();
         track.tags.artist = Some(" Artist".to_string());
         let original_title = track.tags.title.clone();
-        let violations = MetaTextTrimmedRule.check(&track);
-        violations[0].fix.as_ref().unwrap().apply(&mut track);
+        let result = MetaTextTrimmedRule.check(&track);
+        result.violations()[0]
+            .fix
+            .as_ref()
+            .unwrap()
+            .apply(&mut track);
         assert_eq!(track.tags.artist.as_deref(), Some("Artist"));
         assert_eq!(track.tags.title, original_title);
     }
@@ -163,8 +168,12 @@ mod tests {
     fn fix_trims_both_sides() {
         let mut track = make_track();
         track.tags.bpm = Some("  128.5  ".to_string());
-        let violations = MetaTextTrimmedRule.check(&track);
-        violations[0].fix.as_ref().unwrap().apply(&mut track);
+        let result = MetaTextTrimmedRule.check(&track);
+        result.violations()[0]
+            .fix
+            .as_ref()
+            .unwrap()
+            .apply(&mut track);
         assert_eq!(track.tags.bpm.as_deref(), Some("128.5"));
     }
 
@@ -175,9 +184,13 @@ mod tests {
         // are responsible for catching empty values.
         let mut track = make_track();
         track.tags.album = Some("   ".to_string());
-        let violations = MetaTextTrimmedRule.check(&track);
-        assert_eq!(violations.len(), 1);
-        violations[0].fix.as_ref().unwrap().apply(&mut track);
+        let result = MetaTextTrimmedRule.check(&track);
+        assert_eq!(result.violations().len(), 1);
+        result.violations()[0]
+            .fix
+            .as_ref()
+            .unwrap()
+            .apply(&mut track);
         assert_eq!(track.tags.album.as_deref(), Some(""));
     }
 
@@ -185,6 +198,6 @@ mod tests {
     fn empty_string_is_not_a_violation() {
         let mut track = make_track();
         track.tags.album = Some(String::new());
-        assert!(MetaTextTrimmedRule.check(&track).is_empty());
+        assert!(MetaTextTrimmedRule.check(&track).is_passed());
     }
 }

@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{RuleMetadata, RuleViolation, TrackRule},
+    linter::{LintResult, RuleMetadata, TrackRule},
     rule_metadata,
     track::Track,
 };
@@ -45,14 +45,16 @@ impl TrackRule for BpmNumericRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation> {
+    fn check(&self, track: &Track) -> LintResult {
         let Some(bpm) = track.tags.bpm.as_deref() else {
-            return vec![];
+            return LintResult::Passed;
         };
         let trimmed = bpm.trim();
 
         if !NUMERIC_RE.is_match(trimmed) {
-            return vec![self.error(format!("BPM is not numeric: `{trimmed}`"))];
+            return self
+                .error(format!("BPM is not numeric: `{trimmed}`"))
+                .into();
         }
 
         let mut violations = vec![];
@@ -72,7 +74,7 @@ impl TrackRule for BpmNumericRule {
             );
         }
 
-        violations
+        violations.into()
     }
 }
 
@@ -107,7 +109,7 @@ mod tests {
     use super::BpmNumericRule;
     use crate::linter::{TrackRule, test_utils::make_track};
 
-    fn check_with(bpm: &str) -> Vec<crate::linter::RuleViolation> {
+    fn check_with(bpm: &str) -> crate::linter::LintResult {
         let mut track = make_track();
         track.tags.bpm = Some(bpm.to_string());
         BpmNumericRule.check(&track)
@@ -116,7 +118,8 @@ mod tests {
     fn fix_all(bpm: &str) -> String {
         let mut track = make_track();
         track.tags.bpm = Some(bpm.to_string());
-        for v in BpmNumericRule.check(&track) {
+        let result = BpmNumericRule.check(&track);
+        for v in result.violations() {
             if let Some(fix) = &v.fix {
                 fix.apply(&mut track);
             }
@@ -126,61 +129,61 @@ mod tests {
 
     #[test]
     fn ok_integer() {
-        assert!(check_with("170").is_empty());
+        assert!(check_with("170").is_passed());
     }
 
     #[test]
     fn ok_one_decimal() {
-        assert!(check_with("128.5").is_empty());
+        assert!(check_with("128.5").is_passed());
     }
 
     #[test]
     fn ok_two_decimals() {
-        assert!(check_with("128.25").is_empty());
+        assert!(check_with("128.25").is_passed());
     }
 
     #[test]
     fn whitespace_alone_is_not_a_violation() {
         // Whitespace is handled by meta.text-trimmed (planned), not here.
-        assert!(check_with(" 128.5 ").is_empty());
+        assert!(check_with(" 128.5 ").is_passed());
     }
 
     #[test]
     fn fail_non_numeric() {
-        assert_eq!(check_with("fast").len(), 1);
+        assert_eq!(check_with("fast").violations().len(), 1);
     }
 
     #[test]
     fn fail_partial_alpha() {
-        assert_eq!(check_with("12x").len(), 1);
+        assert_eq!(check_with("12x").violations().len(), 1);
     }
 
     #[test]
     fn fail_too_many_decimals() {
-        assert_eq!(check_with("128.345").len(), 1);
+        assert_eq!(check_with("128.345").violations().len(), 1);
     }
 
     #[test]
     fn fail_trailing_zero() {
-        assert_eq!(check_with("170.50").len(), 1);
+        assert_eq!(check_with("170.50").violations().len(), 1);
     }
 
     #[test]
     fn fail_double_zero_decimal() {
-        assert_eq!(check_with("170.00").len(), 1);
+        assert_eq!(check_with("170.00").violations().len(), 1);
     }
 
     #[test]
     fn two_violations_for_too_many_and_trailing_zero() {
         // 170.500 has both: 3 decimals (too many) AND trailing zero.
-        let violations = check_with("170.500");
-        assert_eq!(violations.len(), 2);
+        let result = check_with("170.500");
+        assert_eq!(result.violations().len(), 2);
     }
 
     #[test]
     fn non_numeric_is_unfixable() {
-        let violations = check_with("fast");
-        assert!(violations[0].fix.is_none());
+        let result = check_with("fast");
+        assert!(result.violations()[0].fix.is_none());
     }
 
     #[test]

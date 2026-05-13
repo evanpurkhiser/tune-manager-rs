@@ -1,5 +1,8 @@
 use crate::{
-    linter::violation::{RuleSeverity, RuleViolation},
+    linter::{
+        result::LintResult,
+        violation::{RuleSeverity, RuleViolation},
+    },
     track::Track,
 };
 
@@ -47,7 +50,7 @@ macro_rules! rule_metadata {
 pub trait TrackRule: Send + Sync {
     fn metadata(&self) -> &'static RuleMetadata;
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation>;
+    fn check(&self, track: &Track) -> LintResult;
 
     /// Build an `Error`-severity violation tagged with this rule's id.
     fn error(&self, message: impl Into<String>) -> RuleViolation

@@ -1,6 +1,6 @@
 use crate::{
+    linter::{LintResult, RuleMetadata, TextField, TrackRule},
     rule_metadata,
-    linter::{RuleMetadata, RuleViolation, TextField, TrackRule},
     track::Track,
 };
 
@@ -50,7 +50,7 @@ impl TrackRule for MetaDisallowedCharactersRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation> {
+    fn check(&self, track: &Track) -> LintResult {
         TextField::ALL
             .into_iter()
             .filter(|field| field.get(track).is_some_and(has_disallowed))
@@ -62,7 +62,8 @@ impl TrackRule for MetaDisallowedCharactersRule {
                         }
                     })
             })
-            .collect()
+            .collect::<Vec<_>>()
+            .into()
     }
 }
 
@@ -73,14 +74,24 @@ mod tests {
 
     #[test]
     fn ok_case() {
-        assert!(MetaDisallowedCharactersRule.check(&make_track()).is_empty());
+        assert!(
+            MetaDisallowedCharactersRule
+                .check(&make_track())
+                .is_passed()
+        );
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
         track.tags.title = Some("Don’t Stop".to_string());
-        assert_eq!(MetaDisallowedCharactersRule.check(&track).len(), 1);
+        assert_eq!(
+            MetaDisallowedCharactersRule
+                .check(&track)
+                .violations()
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -88,7 +99,13 @@ mod tests {
         let mut track = make_track();
         track.tags.title = Some("Don’t Stop".to_string());
         track.tags.album = Some("“Greatest Hits”".to_string());
-        assert_eq!(MetaDisallowedCharactersRule.check(&track).len(), 2);
+        assert_eq!(
+            MetaDisallowedCharactersRule
+                .check(&track)
+                .violations()
+                .len(),
+            2
+        );
     }
 
     #[test]
@@ -96,9 +113,13 @@ mod tests {
         let mut track = make_track();
         track.tags.title = Some("Don’t Stop".to_string());
         track.tags.album = Some("Album".to_string());
-        let violations = MetaDisallowedCharactersRule.check(&track);
-        assert_eq!(violations.len(), 1);
-        violations[0].fix.as_ref().unwrap().apply(&mut track);
+        let result = MetaDisallowedCharactersRule.check(&track);
+        assert_eq!(result.violations().len(), 1);
+        result.violations()[0]
+            .fix
+            .as_ref()
+            .unwrap()
+            .apply(&mut track);
         assert_eq!(track.tags.title.as_deref(), Some("Don't Stop"));
         assert_eq!(track.tags.album.as_deref(), Some("Album"));
     }
@@ -107,8 +128,12 @@ mod tests {
     fn fix_double_smart_quotes() {
         let mut track = make_track();
         track.tags.title = Some("“Hello”".to_string());
-        let violations = MetaDisallowedCharactersRule.check(&track);
-        violations[0].fix.as_ref().unwrap().apply(&mut track);
+        let result = MetaDisallowedCharactersRule.check(&track);
+        result.violations()[0]
+            .fix
+            .as_ref()
+            .unwrap()
+            .apply(&mut track);
         assert_eq!(track.tags.title.as_deref(), Some(r#""Hello""#));
     }
 
@@ -116,8 +141,12 @@ mod tests {
     fn fix_backtick_and_acute() {
         let mut track = make_track();
         track.tags.title = Some("It`s ´ok´".to_string());
-        let violations = MetaDisallowedCharactersRule.check(&track);
-        violations[0].fix.as_ref().unwrap().apply(&mut track);
+        let result = MetaDisallowedCharactersRule.check(&track);
+        result.violations()[0]
+            .fix
+            .as_ref()
+            .unwrap()
+            .apply(&mut track);
         assert_eq!(track.tags.title.as_deref(), Some("It's 'ok'"));
     }
 
@@ -126,8 +155,8 @@ mod tests {
         let mut track = make_track();
         track.tags.title = Some("Don’t Stop".to_string());
         track.tags.artist = Some("A’B".to_string());
-        let violations = MetaDisallowedCharactersRule.check(&track);
-        for v in &violations {
+        let result = MetaDisallowedCharactersRule.check(&track);
+        for v in result.violations() {
             v.fix.as_ref().unwrap().apply(&mut track);
         }
         assert_eq!(track.tags.title.as_deref(), Some("Don't Stop"));

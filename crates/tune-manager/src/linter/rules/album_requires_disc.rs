@@ -1,6 +1,6 @@
 use crate::{
+    linter::{LintResult, RuleMetadata, TrackRule},
     rule_metadata,
-    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -25,11 +25,11 @@ impl TrackRule for AlbumRequiresDiscRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation> {
+    fn check(&self, track: &Track) -> LintResult {
         if track.tags.album.is_some() && track.tags.disc.is_none() {
-            return vec![self.error("Album is present but disc is missing")];
+            return self.error("Album is present but disc is missing").into();
         }
-        vec![]
+        LintResult::Passed
     }
 }
 
@@ -40,13 +40,13 @@ mod tests {
 
     #[test]
     fn ok_case() {
-        assert!(AlbumRequiresDiscRule.check(&make_track()).is_empty());
+        assert!(AlbumRequiresDiscRule.check(&make_track()).is_passed());
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
         track.tags.disc = None;
-        assert_eq!(AlbumRequiresDiscRule.check(&track).len(), 1);
+        assert_eq!(AlbumRequiresDiscRule.check(&track).violations().len(), 1);
     }
 }

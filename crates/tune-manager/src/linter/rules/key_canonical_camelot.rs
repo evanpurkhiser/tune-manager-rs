@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{RuleMetadata, RuleViolation, TrackRule},
+    linter::{LintResult, RuleMetadata, TrackRule},
     rule_metadata,
     track::Track,
 };
@@ -43,42 +43,43 @@ impl TrackRule for KeyCanonicalCamelotRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation> {
+    fn check(&self, track: &Track) -> LintResult {
         let Some(key) = track.tags.key.as_deref() else {
-            return vec![];
+            return LintResult::Passed;
         };
         let key = key.trim();
 
         if CANONICAL_RE.is_match(key) {
-            return vec![];
+            return LintResult::Passed;
         }
 
         if let Some(canonical) = parse_camelot(key) {
-            return vec![
-                self.error(format!(
+            return self
+                .error(format!(
                     "Key `{key}` is non-canonical Camelot; should be `{canonical}`"
                 ))
-                .with_fix(fix_to_canonical_camelot),
-            ];
+                .with_fix(fix_to_canonical_camelot)
+                .into();
         }
         if let Some(canonical) = parse_openkey(key) {
-            return vec![
-                self.error(format!(
+            return self
+                .error(format!(
                     "Key `{key}` is OpenKey notation; canonical Camelot is `{canonical}`"
                 ))
-                .with_fix(fix_to_canonical_camelot),
-            ];
+                .with_fix(fix_to_canonical_camelot)
+                .into();
         }
         if let Some(canonical) = parse_musical(key) {
-            return vec![
-                self.error(format!(
+            return self
+                .error(format!(
                     "Key `{key}` is musical notation; canonical Camelot is `{canonical}`"
                 ))
-                .with_fix(fix_to_canonical_camelot),
-            ];
+                .with_fix(fix_to_canonical_camelot)
+                .into();
         }
 
-        vec![self.error(format!("Key `{key}` is not in a recognized notation"))]
+        self.error(format!("Key `{key}` is not in a recognized notation"))
+            .into()
     }
 }
 
@@ -174,7 +175,7 @@ mod tests {
     use super::KeyCanonicalCamelotRule;
     use crate::linter::{TrackRule, test_utils::make_track};
 
-    fn check_with(key: &str) -> Vec<crate::linter::RuleViolation> {
+    fn check_with(key: &str) -> crate::linter::LintResult {
         let mut track = make_track();
         track.tags.key = Some(key.to_string());
         KeyCanonicalCamelotRule.check(&track)
@@ -183,33 +184,37 @@ mod tests {
     fn fixed(key: &str) -> String {
         let mut track = make_track();
         track.tags.key = Some(key.to_string());
-        let violations = KeyCanonicalCamelotRule.check(&track);
-        violations[0].fix.as_ref().unwrap().apply(&mut track);
+        let result = KeyCanonicalCamelotRule.check(&track);
+        result.violations()[0]
+            .fix
+            .as_ref()
+            .unwrap()
+            .apply(&mut track);
         track.tags.key.unwrap()
     }
 
     #[test]
     fn ok_canonical() {
-        assert!(check_with("01A").is_empty());
-        assert!(check_with("12B").is_empty());
-        assert!(check_with("08A").is_empty());
+        assert!(check_with("01A").is_passed());
+        assert!(check_with("12B").is_passed());
+        assert!(check_with("08A").is_passed());
     }
 
     #[test]
     fn fail_unpadded_camelot() {
-        assert_eq!(check_with("1A").len(), 1);
+        assert_eq!(check_with("1A").violations().len(), 1);
     }
 
     #[test]
     fn fail_lowercase_suffix() {
-        assert_eq!(check_with("01a").len(), 1);
+        assert_eq!(check_with("01a").violations().len(), 1);
     }
 
     #[test]
     fn fail_unrecognized_no_fix() {
-        let violations = check_with("xyz");
-        assert_eq!(violations.len(), 1);
-        assert!(violations[0].fix.is_none());
+        let result = check_with("xyz");
+        assert_eq!(result.violations().len(), 1);
+        assert!(result.violations()[0].fix.is_none());
     }
 
     #[test]

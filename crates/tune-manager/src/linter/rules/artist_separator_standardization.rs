@@ -2,8 +2,8 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
+    linter::{LintResult, RuleMetadata, TrackRule},
     rule_metadata,
-    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -41,21 +41,20 @@ impl TrackRule for ArtistSeparatorStandardizationRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation> {
+    fn check(&self, track: &Track) -> LintResult {
         let Some(artist) = track.tags.artist.as_deref() else {
-            return vec![];
+            return LintResult::Passed;
         };
         if !NON_CANON_RE.is_match(artist) {
-            return vec![];
+            return LintResult::Passed;
         }
-        vec![
-            self.error("Artist connectors are not canonical")
-                .with_fix(|track| {
-                    if let Some(artist) = track.tags.artist.as_deref() {
-                        track.tags.artist = Some(standardize_separators(artist));
-                    }
-                }),
-        ]
+        self.error("Artist connectors are not canonical")
+            .with_fix(|track| {
+                if let Some(artist) = track.tags.artist.as_deref() {
+                    track.tags.artist = Some(standardize_separators(artist));
+                }
+            })
+            .into()
     }
 }
 
@@ -80,28 +79,44 @@ mod tests {
     fn ok_case() {
         let mut track = make_track();
         track.tags.artist = Some("A & B".to_string());
-        assert!(ArtistSeparatorStandardizationRule.check(&track).is_empty());
+        assert!(ArtistSeparatorStandardizationRule.check(&track).is_passed());
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
         track.tags.artist = Some("A and B".to_string());
-        assert_eq!(ArtistSeparatorStandardizationRule.check(&track).len(), 1);
+        assert_eq!(
+            ArtistSeparatorStandardizationRule
+                .check(&track)
+                .violations()
+                .len(),
+            1
+        );
     }
 
     #[test]
     fn fail_versus() {
         let mut track = make_track();
         track.tags.artist = Some("A versus B".to_string());
-        assert_eq!(ArtistSeparatorStandardizationRule.check(&track).len(), 1);
+        assert_eq!(
+            ArtistSeparatorStandardizationRule
+                .check(&track)
+                .violations()
+                .len(),
+            1
+        );
     }
 
     fn fixed_artist(input: &str) -> String {
         let mut track = make_track();
         track.tags.artist = Some(input.to_string());
-        let violations = ArtistSeparatorStandardizationRule.check(&track);
-        violations[0].fix.as_ref().unwrap().apply(&mut track);
+        let result = ArtistSeparatorStandardizationRule.check(&track);
+        result.violations()[0]
+            .fix
+            .as_ref()
+            .unwrap()
+            .apply(&mut track);
         track.tags.artist.unwrap()
     }
 

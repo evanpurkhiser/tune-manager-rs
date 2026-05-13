@@ -1,6 +1,6 @@
 use crate::{
+    linter::{LintResult, RuleMetadata, TrackRule},
     rule_metadata,
-    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -27,7 +27,7 @@ impl TrackRule for MetaRequiredFieldsPresentRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation> {
+    fn check(&self, track: &Track) -> LintResult {
         let required = [
             ("artist", track.tags.artist.as_deref()),
             ("title", track.tags.title.as_deref()),
@@ -37,7 +37,8 @@ impl TrackRule for MetaRequiredFieldsPresentRule {
             .into_iter()
             .filter(|(_, value)| !value.is_some_and(|v| !v.trim().is_empty()))
             .map(|(name, _)| self.error(format!("Required field `{name}` is missing or empty")))
-            .collect()
+            .collect::<Vec<_>>()
+            .into()
     }
 }
 
@@ -51,7 +52,7 @@ mod tests {
         assert!(
             MetaRequiredFieldsPresentRule
                 .check(&make_track())
-                .is_empty()
+                .is_passed()
         );
     }
 
@@ -59,14 +60,26 @@ mod tests {
     fn fail_missing_artist() {
         let mut track = make_track();
         track.tags.artist = None;
-        assert_eq!(MetaRequiredFieldsPresentRule.check(&track).len(), 1);
+        assert_eq!(
+            MetaRequiredFieldsPresentRule
+                .check(&track)
+                .violations()
+                .len(),
+            1
+        );
     }
 
     #[test]
     fn fail_missing_title() {
         let mut track = make_track();
         track.tags.title = None;
-        assert_eq!(MetaRequiredFieldsPresentRule.check(&track).len(), 1);
+        assert_eq!(
+            MetaRequiredFieldsPresentRule
+                .check(&track)
+                .violations()
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -74,20 +87,38 @@ mod tests {
         let mut track = make_track();
         track.tags.artist = None;
         track.tags.title = None;
-        assert_eq!(MetaRequiredFieldsPresentRule.check(&track).len(), 2);
+        assert_eq!(
+            MetaRequiredFieldsPresentRule
+                .check(&track)
+                .violations()
+                .len(),
+            2
+        );
     }
 
     #[test]
     fn fail_whitespace_only() {
         let mut track = make_track();
         track.tags.artist = Some("   ".to_string());
-        assert_eq!(MetaRequiredFieldsPresentRule.check(&track).len(), 1);
+        assert_eq!(
+            MetaRequiredFieldsPresentRule
+                .check(&track)
+                .violations()
+                .len(),
+            1
+        );
     }
 
     #[test]
     fn fail_empty_string() {
         let mut track = make_track();
         track.tags.title = Some(String::new());
-        assert_eq!(MetaRequiredFieldsPresentRule.check(&track).len(), 1);
+        assert_eq!(
+            MetaRequiredFieldsPresentRule
+                .check(&track)
+                .violations()
+                .len(),
+            1
+        );
     }
 }

@@ -1,6 +1,6 @@
 use crate::{
+    linter::{LintResult, RuleMetadata, TrackRule},
     rule_metadata,
-    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -26,7 +26,7 @@ impl TrackRule for MetaPublisherCatalogPairingRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation> {
+    fn check(&self, track: &Track) -> LintResult {
         let publisher = track
             .tags
             .publisher
@@ -41,9 +41,13 @@ impl TrackRule for MetaPublisherCatalogPairingRule {
             .filter(|v| !v.is_empty());
 
         match (publisher, catalog_id) {
-            (Some(_), None) => vec![self.warn("Publisher is present but catalog_id is missing")],
-            (None, Some(_)) => vec![self.error("Catalog_id is present but publisher is missing")],
-            _ => vec![],
+            (Some(_), None) => self
+                .warn("Publisher is present but catalog_id is missing")
+                .into(),
+            (None, Some(_)) => self
+                .error("Catalog_id is present but publisher is missing")
+                .into(),
+            _ => LintResult::Passed,
         }
     }
 }
@@ -58,7 +62,7 @@ mod tests {
         assert!(
             MetaPublisherCatalogPairingRule
                 .check(&make_track())
-                .is_empty()
+                .is_passed()
         );
     }
 
@@ -67,33 +71,33 @@ mod tests {
         let mut track = make_track();
         track.tags.publisher = None;
         track.tags.catalog_id = None;
-        assert!(MetaPublisherCatalogPairingRule.check(&track).is_empty());
+        assert!(MetaPublisherCatalogPairingRule.check(&track).is_passed());
     }
 
     #[test]
     fn warn_publisher_without_catalog() {
         let mut track = make_track();
         track.tags.catalog_id = None;
-        let violations = MetaPublisherCatalogPairingRule.check(&track);
-        assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].severity, RuleSeverity::Warn);
+        let result = MetaPublisherCatalogPairingRule.check(&track);
+        assert_eq!(result.violations().len(), 1);
+        assert_eq!(result.violations()[0].severity, RuleSeverity::Warn);
     }
 
     #[test]
     fn error_catalog_without_publisher() {
         let mut track = make_track();
         track.tags.publisher = None;
-        let violations = MetaPublisherCatalogPairingRule.check(&track);
-        assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].severity, RuleSeverity::Error);
+        let result = MetaPublisherCatalogPairingRule.check(&track);
+        assert_eq!(result.violations().len(), 1);
+        assert_eq!(result.violations()[0].severity, RuleSeverity::Error);
     }
 
     #[test]
     fn warn_whitespace_catalog() {
         let mut track = make_track();
         track.tags.catalog_id = Some("   ".to_string());
-        let violations = MetaPublisherCatalogPairingRule.check(&track);
-        assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].severity, RuleSeverity::Warn);
+        let result = MetaPublisherCatalogPairingRule.check(&track);
+        assert_eq!(result.violations().len(), 1);
+        assert_eq!(result.violations()[0].severity, RuleSeverity::Warn);
     }
 }

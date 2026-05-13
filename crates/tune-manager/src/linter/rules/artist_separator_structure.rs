@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{RuleMetadata, RuleViolation, TrackRule},
+    linter::{LintResult, RuleMetadata, TrackRule},
     rule_metadata,
     track::Track,
 };
@@ -65,9 +65,9 @@ impl TrackRule for ArtistSeparatorStructureRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation> {
+    fn check(&self, track: &Track) -> LintResult {
         let Some(artist) = track.tags.artist.as_deref() else {
-            return vec![];
+            return LintResult::Passed;
         };
         let mut violations = vec![];
 
@@ -114,7 +114,7 @@ impl TrackRule for ArtistSeparatorStructureRule {
             );
         }
 
-        violations
+        violations.into()
     }
 }
 
@@ -159,7 +159,7 @@ mod tests {
     use super::ArtistSeparatorStructureRule;
     use crate::linter::{TrackRule, test_utils::make_track};
 
-    fn check_with(artist: &str) -> Vec<crate::linter::RuleViolation> {
+    fn check_with(artist: &str) -> crate::linter::LintResult {
         let mut track = make_track();
         track.tags.artist = Some(artist.to_string());
         ArtistSeparatorStructureRule.check(&track)
@@ -168,7 +168,8 @@ mod tests {
     fn fix_all(artist: &str) -> String {
         let mut track = make_track();
         track.tags.artist = Some(artist.to_string());
-        for v in ArtistSeparatorStructureRule.check(&track) {
+        let result = ArtistSeparatorStructureRule.check(&track);
+        for v in result.violations() {
             if let Some(fix) = &v.fix {
                 fix.apply(&mut track);
             }
@@ -178,58 +179,58 @@ mod tests {
 
     #[test]
     fn ok_single_artist() {
-        assert!(check_with("A").is_empty());
+        assert!(check_with("A").is_passed());
     }
 
     #[test]
     fn ok_two_with_ampersand() {
-        assert!(check_with("A & B").is_empty());
+        assert!(check_with("A & B").is_passed());
     }
 
     #[test]
     fn ok_two_with_vs() {
-        assert!(check_with("A vs B").is_empty());
+        assert!(check_with("A vs B").is_passed());
     }
 
     #[test]
     fn ok_two_with_comma() {
-        assert!(check_with("A, B").is_empty());
+        assert!(check_with("A, B").is_passed());
     }
 
     #[test]
     fn ok_three_with_commas() {
-        assert!(check_with("A, B, C").is_empty());
+        assert!(check_with("A, B, C").is_passed());
     }
 
     #[test]
     fn ok_three_mixed_amp_and_comma() {
-        assert!(check_with("Aly & Fila, Lostly").is_empty());
+        assert!(check_with("Aly & Fila, Lostly").is_passed());
     }
 
     #[test]
     fn ok_three_mixed_vs_and_amp() {
-        assert!(check_with("Technikore vs Dougal & Gammer").is_empty());
+        assert!(check_with("Technikore vs Dougal & Gammer").is_passed());
     }
 
     #[test]
     fn fail_double_space() {
-        assert_eq!(check_with("A  B").len(), 1);
+        assert_eq!(check_with("A  B").violations().len(), 1);
     }
 
     #[test]
     fn fail_space_before_comma() {
-        assert_eq!(check_with("A , B").len(), 1);
+        assert_eq!(check_with("A , B").violations().len(), 1);
     }
 
     #[test]
     fn fail_doubled_ampersand() {
-        assert_eq!(check_with("A & & B").len(), 1);
+        assert_eq!(check_with("A & & B").violations().len(), 1);
     }
 
     #[test]
     fn fail_doubled_comma() {
         // `A,, B` trips just doubled-comma. The fix collapses to one.
-        assert_eq!(check_with("A,, B").len(), 1);
+        assert_eq!(check_with("A,, B").violations().len(), 1);
     }
 
     #[test]
@@ -237,31 +238,30 @@ mod tests {
         // `A ,, B` trips BOTH space-before-comma AND doubled-comma.
         // Per-cause split surfaces both; their fixes converge under
         // sequential application.
-        assert_eq!(check_with("A ,, B").len(), 2);
+        assert_eq!(check_with("A ,, B").violations().len(), 2);
     }
 
     #[test]
     fn fail_leading_separator() {
-        assert_eq!(check_with(", A & B").len(), 1);
+        assert_eq!(check_with(", A & B").violations().len(), 1);
     }
 
     #[test]
     fn fail_trailing_separator() {
-        assert_eq!(check_with("A & B,").len(), 1);
+        assert_eq!(check_with("A & B,").violations().len(), 1);
     }
 
     #[test]
     fn leading_whitespace_does_not_count_as_double_space() {
         // Should emit ONLY a leading-junk violation, not also a
         // consecutive-whitespace one.
-        assert_eq!(check_with("  A & B").len(), 1);
+        assert_eq!(check_with("  A & B").violations().len(), 1);
     }
 
     #[test]
     fn multiple_distinct_issues_emit_multiple_violations() {
         // Leading junk + doubled ampersand inside.
-        let violations = check_with("  A & & B");
-        assert_eq!(violations.len(), 2);
+        assert_eq!(check_with("  A & & B").violations().len(), 2);
     }
 
     #[test]

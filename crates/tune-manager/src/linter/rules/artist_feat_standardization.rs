@@ -2,8 +2,8 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
+    linter::{LintResult, RuleMetadata, TrackRule},
     rule_metadata,
-    linter::{RuleMetadata, RuleViolation, TrackRule},
     track::Track,
 };
 
@@ -36,28 +36,27 @@ impl TrackRule for ArtistFeatStandardizationRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation> {
+    fn check(&self, track: &Track) -> LintResult {
         let Some(artist) = track.tags.artist.as_deref() else {
-            return vec![];
+            return LintResult::Passed;
         };
         let Some(cap) = FEAT_VARIANT_RE.captures(artist) else {
-            return vec![];
+            return LintResult::Passed;
         };
         let token = cap
             .get(1)
             .map(|m| m.as_str().to_ascii_lowercase())
             .unwrap_or_default();
         if token == "ft." {
-            return vec![];
+            return LintResult::Passed;
         }
-        vec![
-            self.error("Featuring token should be canonical Ft.")
-                .with_fix(|track| {
-                    if let Some(artist) = track.tags.artist.as_deref() {
-                        track.tags.artist = Some(standardize_feat(artist));
-                    }
-                }),
-        ]
+        self.error("Featuring token should be canonical Ft.")
+            .with_fix(|track| {
+                if let Some(artist) = track.tags.artist.as_deref() {
+                    track.tags.artist = Some(standardize_feat(artist));
+                }
+            })
+            .into()
     }
 }
 
@@ -74,21 +73,31 @@ mod tests {
     fn ok_case() {
         let mut track = make_track();
         track.tags.artist = Some("A Ft. B".to_string());
-        assert!(ArtistFeatStandardizationRule.check(&track).is_empty());
+        assert!(ArtistFeatStandardizationRule.check(&track).is_passed());
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
         track.tags.artist = Some("A feat. B".to_string());
-        assert_eq!(ArtistFeatStandardizationRule.check(&track).len(), 1);
+        assert_eq!(
+            ArtistFeatStandardizationRule
+                .check(&track)
+                .violations()
+                .len(),
+            1
+        );
     }
 
     fn fixed_artist(input: &str) -> String {
         let mut track = make_track();
         track.tags.artist = Some(input.to_string());
-        let violations = ArtistFeatStandardizationRule.check(&track);
-        violations[0].fix.as_ref().unwrap().apply(&mut track);
+        let result = ArtistFeatStandardizationRule.check(&track);
+        result.violations()[0]
+            .fix
+            .as_ref()
+            .unwrap()
+            .apply(&mut track);
         track.tags.artist.unwrap()
     }
 

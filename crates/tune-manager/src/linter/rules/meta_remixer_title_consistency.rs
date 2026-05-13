@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{RuleMetadata, RuleViolation, TrackRule},
+    linter::{LintResult, RuleMetadata, TrackRule},
     rule_metadata,
     track::Track,
 };
@@ -42,7 +42,7 @@ impl TrackRule for MetaRemixerTitleConsistencyRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> Vec<RuleViolation> {
+    fn check(&self, track: &Track) -> LintResult {
         let title = track.tags.title.as_deref().unwrap_or_default();
         let remixer = track
             .tags
@@ -55,18 +55,18 @@ impl TrackRule for MetaRemixerTitleConsistencyRule {
             .map(|c| c[1].trim().to_string());
 
         match (remixer, title_artist.as_deref()) {
-            (None, Some(_)) => vec![
-                self.error("Title has remix signal but remixer field is empty")
-                    .with_fix(extract_remixer_from_title),
-            ],
-            (Some(_), None) => {
-                vec![self.error("Remixer is set but title has no remix signal")]
-            }
-            (Some(remixer), Some(artist)) if remixer != artist => vec![
-                self.error("Remixer field does not match title remix note")
-                    .with_fix(extract_remixer_from_title),
-            ],
-            _ => vec![],
+            (None, Some(_)) => self
+                .error("Title has remix signal but remixer field is empty")
+                .with_fix(extract_remixer_from_title)
+                .into(),
+            (Some(_), None) => self
+                .error("Remixer is set but title has no remix signal")
+                .into(),
+            (Some(remixer), Some(artist)) if remixer != artist => self
+                .error("Remixer field does not match title remix note")
+                .with_fix(extract_remixer_from_title)
+                .into(),
+            _ => LintResult::Passed,
         }
     }
 }
@@ -90,7 +90,7 @@ mod tests {
         let mut track = make_track();
         track.tags.title = Some("Song (Remixer Remix)".to_string());
         track.tags.remixer = Some("Remixer".to_string());
-        assert!(MetaRemixerTitleConsistencyRule.check(&track).is_empty());
+        assert!(MetaRemixerTitleConsistencyRule.check(&track).is_passed());
     }
 
     #[test]
@@ -98,7 +98,13 @@ mod tests {
         let mut track = make_track();
         track.tags.title = Some("Song (Other Remix)".to_string());
         track.tags.remixer = Some("Remixer".to_string());
-        assert_eq!(MetaRemixerTitleConsistencyRule.check(&track).len(), 1);
+        assert_eq!(
+            MetaRemixerTitleConsistencyRule
+                .check(&track)
+                .violations()
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -106,7 +112,13 @@ mod tests {
         let mut track = make_track();
         track.tags.title = Some("Song".to_string());
         track.tags.remixer = Some("Remixer".to_string());
-        assert_eq!(MetaRemixerTitleConsistencyRule.check(&track).len(), 1);
+        assert_eq!(
+            MetaRemixerTitleConsistencyRule
+                .check(&track)
+                .violations()
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -114,7 +126,7 @@ mod tests {
         let mut track = make_track();
         track.tags.title = Some("Song (Extended Mix)".to_string());
         track.tags.remixer = None;
-        assert!(MetaRemixerTitleConsistencyRule.check(&track).is_empty());
+        assert!(MetaRemixerTitleConsistencyRule.check(&track).is_passed());
     }
 
     #[test]
@@ -122,7 +134,13 @@ mod tests {
         let mut track = make_track();
         track.tags.title = Some("Song (REMIXER Remix)".to_string());
         track.tags.remixer = Some("Remixer".to_string());
-        assert_eq!(MetaRemixerTitleConsistencyRule.check(&track).len(), 1);
+        assert_eq!(
+            MetaRemixerTitleConsistencyRule
+                .check(&track)
+                .violations()
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -130,9 +148,13 @@ mod tests {
         let mut track = make_track();
         track.tags.title = Some("Song (Remixer Remix)".to_string());
         track.tags.remixer = None;
-        let violations = MetaRemixerTitleConsistencyRule.check(&track);
-        assert_eq!(violations.len(), 1);
-        violations[0].fix.as_ref().unwrap().apply(&mut track);
+        let result = MetaRemixerTitleConsistencyRule.check(&track);
+        assert_eq!(result.violations().len(), 1);
+        result.violations()[0]
+            .fix
+            .as_ref()
+            .unwrap()
+            .apply(&mut track);
         assert_eq!(track.tags.remixer.as_deref(), Some("Remixer"));
     }
 
@@ -141,9 +163,13 @@ mod tests {
         let mut track = make_track();
         track.tags.title = Some("Song (Other Remix)".to_string());
         track.tags.remixer = Some("Remixer".to_string());
-        let violations = MetaRemixerTitleConsistencyRule.check(&track);
-        assert_eq!(violations.len(), 1);
-        violations[0].fix.as_ref().unwrap().apply(&mut track);
+        let result = MetaRemixerTitleConsistencyRule.check(&track);
+        assert_eq!(result.violations().len(), 1);
+        result.violations()[0]
+            .fix
+            .as_ref()
+            .unwrap()
+            .apply(&mut track);
         assert_eq!(track.tags.remixer.as_deref(), Some("Other"));
     }
 
@@ -154,9 +180,9 @@ mod tests {
         let mut track = make_track();
         track.tags.title = Some("Song".to_string());
         track.tags.remixer = Some("Remixer".to_string());
-        let violations = MetaRemixerTitleConsistencyRule.check(&track);
-        assert_eq!(violations.len(), 1);
-        assert!(violations[0].fix.is_none());
+        let result = MetaRemixerTitleConsistencyRule.check(&track);
+        assert_eq!(result.violations().len(), 1);
+        assert!(result.violations()[0].fix.is_none());
     }
 
     #[test]
@@ -164,8 +190,12 @@ mod tests {
         let mut track = make_track();
         track.tags.title = Some("Song (Some Artist Remix)".to_string());
         track.tags.remixer = None;
-        let violations = MetaRemixerTitleConsistencyRule.check(&track);
-        violations[0].fix.as_ref().unwrap().apply(&mut track);
+        let result = MetaRemixerTitleConsistencyRule.check(&track);
+        result.violations()[0]
+            .fix
+            .as_ref()
+            .unwrap()
+            .apply(&mut track);
         assert_eq!(track.tags.remixer.as_deref(), Some("Some Artist"));
     }
 }
