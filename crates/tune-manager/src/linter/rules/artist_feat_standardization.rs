@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, RuleMetadata, TrackRule},
+    linter::{LintResult, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -31,7 +31,7 @@ static FEAT_VARIANT_RE: LazyLock<Regex> =
 
 pub struct ArtistFeatStandardizationRule;
 
-impl TrackRule for ArtistFeatStandardizationRule {
+impl Rule for ArtistFeatStandardizationRule {
     fn metadata(&self) -> &'static RuleMetadata {
         &METADATA
     }
@@ -67,7 +67,7 @@ fn standardize_feat(artist: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::ArtistFeatStandardizationRule;
-    use crate::linter::{TrackRule, test_utils::make_track};
+    use crate::linter::{Rule, test_utils::make_track};
 
     #[test]
     fn ok_case() {

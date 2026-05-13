@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, RuleMetadata, TrackRule},
+    linter::{LintResult, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -28,7 +28,7 @@ static FEAT_RE: LazyLock<Regex> =
 
 pub struct TitleNoFeaturingTokenRule;
 
-impl TrackRule for TitleNoFeaturingTokenRule {
+impl Rule for TitleNoFeaturingTokenRule {
     fn metadata(&self) -> &'static RuleMetadata {
         &METADATA
     }
@@ -49,7 +49,7 @@ impl TrackRule for TitleNoFeaturingTokenRule {
 #[cfg(test)]
 mod tests {
     use super::TitleNoFeaturingTokenRule;
-    use crate::linter::{TrackRule, test_utils::make_track};
+    use crate::linter::{Rule, test_utils::make_track};
 
     #[test]
     fn ok_case() {

@@ -1,5 +1,5 @@
 use crate::{
-    linter::{LintResult, RuleMetadata, TrackRule},
+    linter::{LintResult, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -90,7 +90,7 @@ const FIELDS: &[TrimmableField] = &[
 
 pub struct MetaTextTrimmedRule;
 
-impl TrackRule for MetaTextTrimmedRule {
+impl Rule for MetaTextTrimmedRule {
     fn metadata(&self) -> &'static RuleMetadata {
         &METADATA
     }
@@ -120,7 +120,7 @@ impl TrackRule for MetaTextTrimmedRule {
 #[cfg(test)]
 mod tests {
     use super::MetaTextTrimmedRule;
-    use crate::linter::{TrackRule, test_utils::make_track};
+    use crate::linter::{Rule, test_utils::make_track};
 
     #[test]
     fn ok_case() {

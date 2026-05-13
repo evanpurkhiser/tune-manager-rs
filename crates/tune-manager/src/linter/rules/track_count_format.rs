@@ -1,6 +1,6 @@
 use crate::{
     fields::CountField,
-    linter::{LintResult, RuleMetadata, TrackRule},
+    linter::{LintResult, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -22,7 +22,7 @@ static METADATA: RuleMetadata = rule_metadata! {
 
 pub struct TrackCountFormatRule;
 
-impl TrackRule for TrackCountFormatRule {
+impl Rule for TrackCountFormatRule {
     fn metadata(&self) -> &'static RuleMetadata {
         &METADATA
     }
@@ -44,7 +44,7 @@ mod tests {
     use super::TrackCountFormatRule;
     use crate::{
         fields::CountField,
-        linter::{TrackRule, test_utils::make_track},
+        linter::{Rule, test_utils::make_track},
     };
 
     #[test]

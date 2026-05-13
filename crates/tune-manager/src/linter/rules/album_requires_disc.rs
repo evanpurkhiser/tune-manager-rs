@@ -1,5 +1,5 @@
 use crate::{
-    linter::{LintResult, RuleMetadata, TrackRule},
+    linter::{LintResult, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -20,7 +20,7 @@ static METADATA: RuleMetadata = rule_metadata! {
 
 pub struct AlbumRequiresDiscRule;
 
-impl TrackRule for AlbumRequiresDiscRule {
+impl Rule for AlbumRequiresDiscRule {
     fn metadata(&self) -> &'static RuleMetadata {
         &METADATA
     }
@@ -36,7 +36,7 @@ impl TrackRule for AlbumRequiresDiscRule {
 #[cfg(test)]
 mod tests {
     use super::AlbumRequiresDiscRule;
-    use crate::linter::{TrackRule, test_utils::make_track};
+    use crate::linter::{Rule, test_utils::make_track};
 
     #[test]
     fn ok_case() {

@@ -1,5 +1,5 @@
 use crate::{
-    linter::{LintResult, RuleMetadata, TrackRule},
+    linter::{LintResult, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -21,7 +21,7 @@ static METADATA: RuleMetadata = rule_metadata! {
 
 pub struct PathMatchesCanonicalRule;
 
-impl TrackRule for PathMatchesCanonicalRule {
+impl Rule for PathMatchesCanonicalRule {
     fn metadata(&self) -> &'static RuleMetadata {
         &METADATA
     }
@@ -46,7 +46,7 @@ impl TrackRule for PathMatchesCanonicalRule {
 mod tests {
     use std::path::PathBuf;
 
-    use crate::linter::{TrackRule, test_utils::make_track};
+    use crate::linter::{Rule, test_utils::make_track};
 
     use super::PathMatchesCanonicalRule;
 

@@ -47,7 +47,7 @@ macro_rules! rule_metadata {
     };
 }
 
-pub trait TrackRule: Send + Sync {
+pub trait Rule: Send + Sync {
     fn metadata(&self) -> &'static RuleMetadata;
 
     fn check(&self, track: &Track) -> LintResult;

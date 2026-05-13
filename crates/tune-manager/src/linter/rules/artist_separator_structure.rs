@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, RuleMetadata, TrackRule},
+    linter::{LintResult, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -60,7 +60,7 @@ fn is_separator_or_ws(c: char) -> bool {
 // shared `ArtistField` selector enum and registering this rule twice.
 pub struct ArtistSeparatorStructureRule;
 
-impl TrackRule for ArtistSeparatorStructureRule {
+impl Rule for ArtistSeparatorStructureRule {
     fn metadata(&self) -> &'static RuleMetadata {
         &METADATA
     }
@@ -157,7 +157,7 @@ fn fix_collapse_doubled_amp(track: &mut Track) {
 #[cfg(test)]
 mod tests {
     use super::ArtistSeparatorStructureRule;
-    use crate::linter::{TrackRule, test_utils::make_track};
+    use crate::linter::{Rule, test_utils::make_track};
 
     fn check_with(artist: &str) -> crate::linter::LintResult {
         let mut track = make_track();

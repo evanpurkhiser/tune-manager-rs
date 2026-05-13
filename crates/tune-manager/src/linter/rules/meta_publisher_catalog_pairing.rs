@@ -1,5 +1,5 @@
 use crate::{
-    linter::{LintResult, RuleMetadata, TrackRule},
+    linter::{LintResult, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -21,7 +21,7 @@ static METADATA: RuleMetadata = rule_metadata! {
 
 pub struct MetaPublisherCatalogPairingRule;
 
-impl TrackRule for MetaPublisherCatalogPairingRule {
+impl Rule for MetaPublisherCatalogPairingRule {
     fn metadata(&self) -> &'static RuleMetadata {
         &METADATA
     }
@@ -55,7 +55,7 @@ impl TrackRule for MetaPublisherCatalogPairingRule {
 #[cfg(test)]
 mod tests {
     use super::MetaPublisherCatalogPairingRule;
-    use crate::linter::{RuleSeverity, TrackRule, test_utils::make_track};
+    use crate::linter::{Rule, RuleSeverity, test_utils::make_track};
 
     #[test]
     fn ok_both_present() {

@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, RuleMetadata, TrackRule},
+    linter::{LintResult, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -32,7 +32,7 @@ static FUZZY_MIX_RE: LazyLock<Regex> =
 
 pub struct TitleMixSuffixStyleRule;
 
-impl TrackRule for TitleMixSuffixStyleRule {
+impl Rule for TitleMixSuffixStyleRule {
     fn metadata(&self) -> &'static RuleMetadata {
         &METADATA
     }
@@ -79,7 +79,7 @@ fn title_case(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::TitleMixSuffixStyleRule;
-    use crate::linter::{TrackRule, test_utils::make_track};
+    use crate::linter::{Rule, test_utils::make_track};
 
     #[test]
     fn ok_case() {

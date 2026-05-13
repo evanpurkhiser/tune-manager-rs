@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, RuleMetadata, TrackRule},
+    linter::{LintResult, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -26,7 +26,7 @@ static YEAR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d{4}$").unwrap
 
 pub struct YearFormatRule;
 
-impl TrackRule for YearFormatRule {
+impl Rule for YearFormatRule {
     fn metadata(&self) -> &'static RuleMetadata {
         &METADATA
     }
@@ -46,7 +46,7 @@ impl TrackRule for YearFormatRule {
 #[cfg(test)]
 mod tests {
     use super::YearFormatRule;
-    use crate::linter::{TrackRule, test_utils::make_track};
+    use crate::linter::{Rule, test_utils::make_track};
 
     #[test]
     fn ok_case() {

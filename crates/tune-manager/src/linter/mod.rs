@@ -8,7 +8,7 @@ pub mod violation;
 pub mod test_utils;
 
 pub use result::LintResult;
-pub use rule::{RuleMetadata, TrackRule};
+pub use rule::{Rule, RuleMetadata};
 pub use text_field::TextField;
 // Public surface used only via `linter::*` paths once the engine is wired.
 // Re-export now so callers don't need to know the internal module split.

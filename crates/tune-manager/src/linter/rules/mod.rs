@@ -1,4 +1,4 @@
-use crate::linter::TrackRule;
+use crate::linter::Rule;
 
 pub mod album_requires_disc;
 pub mod artist_feat_standardization;
@@ -22,7 +22,7 @@ pub mod track_count_format;
 pub mod track_requires_disc;
 pub mod year_format;
 
-pub fn track_only_rules() -> Vec<Box<dyn TrackRule>> {
+pub fn track_only_rules() -> Vec<Box<dyn Rule>> {
     vec![
         Box::new(file_supported_extension::FileSupportedExtensionRule),
         Box::new(path_matches_canonical::PathMatchesCanonicalRule),

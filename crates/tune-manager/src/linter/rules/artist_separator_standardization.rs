@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, RuleMetadata, TrackRule},
+    linter::{LintResult, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -36,7 +36,7 @@ static NON_CANON_RE: LazyLock<Regex> =
 // shared `ArtistField` selector enum and registering this rule twice.
 pub struct ArtistSeparatorStandardizationRule;
 
-impl TrackRule for ArtistSeparatorStandardizationRule {
+impl Rule for ArtistSeparatorStandardizationRule {
     fn metadata(&self) -> &'static RuleMetadata {
         &METADATA
     }
@@ -73,7 +73,7 @@ fn standardize_separators(artist: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::ArtistSeparatorStandardizationRule;
-    use crate::linter::{TrackRule, test_utils::make_track};
+    use crate::linter::{Rule, test_utils::make_track};
 
     #[test]
     fn ok_case() {

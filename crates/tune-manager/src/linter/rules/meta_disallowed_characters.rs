@@ -1,5 +1,5 @@
 use crate::{
-    linter::{LintResult, RuleMetadata, TextField, TrackRule},
+    linter::{LintResult, Rule, RuleMetadata, TextField},
     rule_metadata,
     track::Track,
 };
@@ -45,7 +45,7 @@ fn has_disallowed(s: &str) -> bool {
 
 pub struct MetaDisallowedCharactersRule;
 
-impl TrackRule for MetaDisallowedCharactersRule {
+impl Rule for MetaDisallowedCharactersRule {
     fn metadata(&self) -> &'static RuleMetadata {
         &METADATA
     }
@@ -70,7 +70,7 @@ impl TrackRule for MetaDisallowedCharactersRule {
 #[cfg(test)]
 mod tests {
     use super::MetaDisallowedCharactersRule;
-    use crate::linter::{TrackRule, test_utils::make_track};
+    use crate::linter::{Rule, test_utils::make_track};
 
     #[test]
     fn ok_case() {

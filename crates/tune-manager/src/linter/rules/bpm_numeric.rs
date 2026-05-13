@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, RuleMetadata, TrackRule},
+    linter::{LintResult, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -40,7 +40,7 @@ static NUMERIC_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[0-9]+(\.[0-
 
 pub struct BpmNumericRule;
 
-impl TrackRule for BpmNumericRule {
+impl Rule for BpmNumericRule {
     fn metadata(&self) -> &'static RuleMetadata {
         &METADATA
     }
@@ -107,7 +107,7 @@ fn fix_strip_trailing_decimal_zero(track: &mut Track) {
 #[cfg(test)]
 mod tests {
     use super::BpmNumericRule;
-    use crate::linter::{TrackRule, test_utils::make_track};
+    use crate::linter::{Rule, test_utils::make_track};
 
     fn check_with(bpm: &str) -> crate::linter::LintResult {
         let mut track = make_track();

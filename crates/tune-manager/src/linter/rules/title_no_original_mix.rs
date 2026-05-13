@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, RuleMetadata, TrackRule},
+    linter::{LintResult, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -31,7 +31,7 @@ static ORIGINAL_MIX_RE: LazyLock<Regex> =
 
 pub struct TitleNoOriginalMixRule;
 
-impl TrackRule for TitleNoOriginalMixRule {
+impl Rule for TitleNoOriginalMixRule {
     fn metadata(&self) -> &'static RuleMetadata {
         &METADATA
     }
@@ -60,7 +60,7 @@ fn strip_original_mix(title: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::TitleNoOriginalMixRule;
-    use crate::linter::{TrackRule, test_utils::make_track};
+    use crate::linter::{Rule, test_utils::make_track};
 
     #[test]
     fn ok_case() {

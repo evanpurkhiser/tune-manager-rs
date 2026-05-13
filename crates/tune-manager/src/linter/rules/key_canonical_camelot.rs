@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, RuleMetadata, TrackRule},
+    linter::{LintResult, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -38,7 +38,7 @@ static CANONICAL_RE: LazyLock<Regex> =
 
 pub struct KeyCanonicalCamelotRule;
 
-impl TrackRule for KeyCanonicalCamelotRule {
+impl Rule for KeyCanonicalCamelotRule {
     fn metadata(&self) -> &'static RuleMetadata {
         &METADATA
     }
@@ -173,7 +173,7 @@ fn musical_minor_to_number(note: &str) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::KeyCanonicalCamelotRule;
-    use crate::linter::{TrackRule, test_utils::make_track};
+    use crate::linter::{Rule, test_utils::make_track};
 
     fn check_with(key: &str) -> crate::linter::LintResult {
         let mut track = make_track();
