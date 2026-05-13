@@ -100,6 +100,14 @@ normalization, and lowercase extension normalization.
     - Severity: `error`.
     - Autofix: no.
 
+#### `meta.text-trimmed`
+    - Track only: Yes.
+    - Text-valued tag fields must have no leading or trailing whitespace.
+    - Covers every string-valued field: artist, title, album, remixer,
+      publisher, catalog_id, year, genre, key, bpm.
+    - Severity: `error`.
+    - Autofix: yes. One violation per affected field, fix trims that field.
+
 #### `artist.known_value`
     - Track only: No.
     - Warn when artist is not present in the known catalog artist set.
