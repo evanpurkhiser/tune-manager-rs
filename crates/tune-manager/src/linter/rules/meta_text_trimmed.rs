@@ -8,13 +8,23 @@ static METADATA: RuleMetadata = rule_metadata! {
     id: "meta.text-trimmed",
     description: r#"
         Text-valued tag fields must have no leading or trailing whitespace.
-
         Applies to every string-valued tag field (artist, title, album,
         remixer, publisher, catalog_id, year, genre, key, bpm).
 
-        Centralizing whitespace handling here means format-specific rules
-        (bpm.numeric, year.format, etc.) don't each have to repeat trim
-        logic in their own checks and fixes.
+        Valid:
+        - artist=Artist
+        - bpm=128.5
+
+        Invalid:
+        - artist=" Artist" (leading whitespace)
+        - title="Title  " (trailing whitespace)
+    "#,
+    autofix_notes: r#"
+        Emits one violation per affected field. Each fix trims that
+        field's value.
+
+        Whitespace-only values trim to empty strings — emptiness is
+        caught separately by `meta.required-fields-present`.
     "#,
 };
 

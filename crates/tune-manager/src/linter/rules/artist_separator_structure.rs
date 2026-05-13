@@ -11,16 +11,13 @@ static METADATA: RuleMetadata = rule_metadata! {
     id: "artist.separator-structure",
     description: r#"
         Artist separators must form a clean structure with no malformed
-        whitespace or duplicated separators.
+        whitespace or duplicated separators. Any mix of canonical
+        separators (`,`, `vs`, `&`) is allowed; choice is left to the
+        writer.
 
-        Hygiene:
-        - No leading or trailing whitespace or separators.
-        - No whitespace before a comma.
-        - No consecutive whitespace inside the body.
-        - No duplicated separators (`,,`, `& &`, etc.).
-
-        Any mix of canonical separators (`,`, `vs`, `&`) is allowed; choice of
-        separator is left to the writer.
+        Specifically: no leading or trailing whitespace or separators,
+        no whitespace before a comma, no consecutive whitespace inside
+        the body, and no duplicated separators (`,,`, `& &`, etc.).
 
         Valid:
         - A & B
@@ -32,10 +29,19 @@ static METADATA: RuleMetadata = rule_metadata! {
         Invalid:
         - A & & B (duplicate separator)
         - A ,  B (bad spacing)
+        - , A & B (leading separator)
+    "#,
+    autofix_notes: r#"
+        Emits one violation per detected issue, each with its own fix:
+        - Leading separator/whitespace → trimmed.
+        - Trailing separator/whitespace → trimmed.
+        - Whitespace before comma → removed.
+        - Consecutive whitespace → collapsed to a single space.
+        - Doubled comma (`,,`, `, ,`) → collapsed to one.
+        - Doubled ampersand (`& &`) → collapsed to one.
 
-        Not detected here: mixed-type doubled separators between the same
-        pair (e.g. `A , vs B`) — those require understanding artist tokens
-        rather than just hygiene patterns. Left for a future rule.
+        Mixed-type doubled separators between the same pair (e.g.
+        `A , vs B`) are not detected — those need artist tokenization.
     "#,
 };
 

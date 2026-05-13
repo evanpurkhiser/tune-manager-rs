@@ -2,8 +2,8 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    rule_metadata,
     linter::{RuleMetadata, RuleViolation, TrackRule},
+    rule_metadata,
     track::Track,
 };
 
@@ -19,13 +19,16 @@ static METADATA: RuleMetadata = rule_metadata! {
         Invalid:
         - title=Song (Other Remix), remixer=Remixer (name mismatch)
         - title=Song (Remixer Remix), remixer missing (missing remixer field)
+    "#,
+    autofix_notes: r#"
+        Treats the title as authoritative — extracts the artist from the
+        title's `(Artist Remix)` group and writes it into the remixer
+        field. Fires for both "remixer empty" and "remixer mismatched"
+        cases.
 
-        Autofix: when the title carries a remix note we trust the title as
-        authoritative — the remixer field is rewritten by extracting the
-        artist name from the title's `(Artist Remix)` group. We do not go
-        the other direction (writing a remix note into the title from the
-        remixer field) because that requires deciding suffix style and
-        placement, which isn't always clear cut.
+        Does NOT fix the opposite case (remixer set, title has no remix
+        note). Writing a remix suffix into the title requires deciding
+        placement and style, which isn't clear cut.
     "#,
 };
 
@@ -59,7 +62,7 @@ impl TrackRule for MetaRemixerTitleConsistencyRule {
             (Some(_), None) => {
                 vec![self.error("Remixer is set but title has no remix signal")]
             }
-            (Some(remixer), Some(t_artist)) if remixer != t_artist => vec![
+            (Some(remixer), Some(artist)) if remixer != artist => vec![
                 self.error("Remixer field does not match title remix note")
                     .with_fix(extract_remixer_from_title),
             ],

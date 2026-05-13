@@ -20,6 +20,10 @@ static METADATA: RuleMetadata = rule_metadata! {
         - Song (Original Mix) (original mix label should be removed)
         - Song (ORIGINAL MIX) (case-insensitive match)
     "#,
+    autofix_notes: r#"
+        Removes the `(Original Mix)` suffix, collapsing surrounding
+        whitespace so middle-of-string occurrences don't leave gaps.
+    "#,
 };
 
 static ORIGINAL_MIX_RE: LazyLock<Regex> =

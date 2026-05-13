@@ -20,6 +20,10 @@ static METADATA: RuleMetadata = rule_metadata! {
         - Artist A feat. Artist B (use Ft.)
         - Artist A featuring Artist B (use Ft.)
     "#,
+    autofix_notes: r#"
+        Replaces non-canonical featuring tokens (`feat.`, `featuring`,
+        `ft.`, `ft`, case-insensitive) with `Ft.`.
+    "#,
 };
 
 static FEAT_VARIANT_RE: LazyLock<Regex> =

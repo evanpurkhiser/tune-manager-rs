@@ -24,6 +24,16 @@ static METADATA: RuleMetadata = rule_metadata! {
         - 170.50 (trailing zero in decimal form)
         - 170.00 (whole numbers should not be decimal)
     "#,
+    autofix_notes: r#"
+        Emits one violation per detected issue. Each fix addresses just
+        that issue:
+        - More than two decimal places → rounds to two.
+        - Trailing decimal zero → strips trailing zeros (and the dot if
+          nothing remains after it).
+
+        Non-numeric values (`fast`, `12x`) are not fixed — the intended
+        value can't be recovered mechanically.
+    "#,
 };
 
 static NUMERIC_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[0-9]+(\.[0-9]+)?$").unwrap());

@@ -21,6 +21,12 @@ static METADATA: RuleMetadata = rule_metadata! {
         - A vs. B (use vs without period)
         - A versus B (use vs)
     "#,
+    autofix_notes: r#"
+        Rewrites non-canonical tokens to their canonical form:
+        - `and` → `&`
+        - `vs.` → `vs`
+        - `versus` → `vs`
+    "#,
 };
 
 static NON_CANON_RE: LazyLock<Regex> =

@@ -17,6 +17,14 @@ static METADATA: RuleMetadata = rule_metadata! {
         - Don’t Stop (contains curly apostrophe)
         - Artist “Name” (contains curly quotes)
     "#,
+    autofix_notes: r#"
+        Replaces smart quotes in every affected text field:
+        - `“` `”` → `"`
+        - `‘` `’` `´` `` ` `` → `'`
+
+        Emits one violation per affected field so each fix is scoped to
+        the field that triggered it.
+    "#,
 };
 
 fn replace_smart_quotes(s: &str) -> String {

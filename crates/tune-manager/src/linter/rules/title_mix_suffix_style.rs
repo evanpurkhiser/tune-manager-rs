@@ -20,6 +20,11 @@ static METADATA: RuleMetadata = rule_metadata! {
         - Song (artist remix) (non-canonical suffix style)
         - Song (artist version) (non-canonical suffix style)
     "#,
+    autofix_notes: r#"
+        Title-cases the mix/edit/version keyword inside the parens. The
+        artist name portion is left untouched so intentionally lowercase
+        artists like `deadmau5` are preserved.
+    "#,
 };
 
 static FUZZY_MIX_RE: LazyLock<Regex> =

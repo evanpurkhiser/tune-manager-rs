@@ -12,17 +12,24 @@ static METADATA: RuleMetadata = rule_metadata! {
     description: r#"
         Key must use canonical Camelot notation, zero-padded.
 
-        Canonical:
+        Valid:
         - 01A..12A (minor)
         - 01B..12B (major)
 
-        Autofix recognizes and converts these notations into canonical
-        Camelot:
-
+        Invalid:
+        - 1A (not zero-padded)
+        - 01a (suffix must be uppercase)
+        - Am (musical notation, not Camelot)
+        - 1d (OpenKey notation, not Camelot)
+    "#,
+    autofix_notes: r#"
+        Recognizes and converts these notations into canonical Camelot:
         - Non-canonical Camelot: `1A`, `1a`, `01a`.
         - OpenKey: `1d`/`1m` … `12d`/`12m`.
         - Standard musical: `C`, `Am`, `F#`, `Bbm`. Sharps are accepted as
           aliases of the equivalent flat (`F#` = `Gb`, `C#` = `Db`, etc.).
+
+        Anything outside these notations is reported but left unfixed.
     "#,
 };
 
