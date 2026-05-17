@@ -2,9 +2,8 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, Rule, RuleMetadata},
+    linter::{LintResult, LintTarget, Rule, RuleMetadata},
     rule_metadata,
-    track::Track,
 };
 
 static METADATA: RuleMetadata = rule_metadata! {
@@ -36,7 +35,8 @@ impl Rule for ArtistFeatStandardizationRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> LintResult {
+    fn check(&self, target: &LintTarget) -> LintResult {
+        let track = &target.track;
         let Some(artist) = track.fields.artist.as_deref() else {
             return LintResult::Passed;
         };
@@ -67,13 +67,17 @@ fn standardize_feat(artist: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::ArtistFeatStandardizationRule;
-    use crate::linter::{Rule, test_utils::make_track};
+    use crate::linter::{LintTarget, Rule, test_utils::make_track};
 
     #[test]
     fn ok_case() {
         let mut track = make_track();
         track.fields.artist = Some("A Ft. B".to_string());
-        assert!(ArtistFeatStandardizationRule.check(&track).is_passed());
+        assert!(
+            ArtistFeatStandardizationRule
+                .check(&track.into())
+                .is_passed()
+        );
     }
 
     #[test]
@@ -82,7 +86,7 @@ mod tests {
         track.fields.artist = Some("A feat. B".to_string());
         assert_eq!(
             ArtistFeatStandardizationRule
-                .check(&track)
+                .check(&track.into())
                 .violations()
                 .len(),
             1
@@ -92,13 +96,14 @@ mod tests {
     fn fixed_artist(input: &str) -> String {
         let mut track = make_track();
         track.fields.artist = Some(input.to_string());
-        let result = ArtistFeatStandardizationRule.check(&track);
+        let mut target: LintTarget = track.into();
+        let result = ArtistFeatStandardizationRule.check(&target);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
-            .apply(&mut track);
-        track.fields.artist.unwrap()
+            .apply(&mut target.track);
+        target.track.fields.artist.unwrap()
     }
 
     #[test]

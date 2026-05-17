@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, Rule, RuleMetadata},
+    linter::{LintResult, LintTarget, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -65,7 +65,8 @@ impl Rule for ArtistSeparatorStructureRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> LintResult {
+    fn check(&self, target: &LintTarget) -> LintResult {
+        let track = &target.track;
         let Some(artist) = track.fields.artist.as_deref() else {
             return LintResult::Passed;
         };
@@ -157,24 +158,25 @@ fn fix_collapse_doubled_amp(track: &mut Track) {
 #[cfg(test)]
 mod tests {
     use super::ArtistSeparatorStructureRule;
-    use crate::linter::{Rule, test_utils::make_track};
+    use crate::linter::{LintTarget, Rule, test_utils::make_track};
 
     fn check_with(artist: &str) -> crate::linter::LintResult {
         let mut track = make_track();
         track.fields.artist = Some(artist.to_string());
-        ArtistSeparatorStructureRule.check(&track)
+        ArtistSeparatorStructureRule.check(&track.into())
     }
 
     fn fix_all(artist: &str) -> String {
         let mut track = make_track();
         track.fields.artist = Some(artist.to_string());
-        let result = ArtistSeparatorStructureRule.check(&track);
+        let mut target: LintTarget = track.into();
+        let result = ArtistSeparatorStructureRule.check(&target);
         for v in result.violations() {
             if let Some(fix) = &v.fix {
-                fix.apply(&mut track);
+                fix.apply(&mut target.track);
             }
         }
-        track.fields.artist.unwrap()
+        target.track.fields.artist.unwrap()
     }
 
     #[test]

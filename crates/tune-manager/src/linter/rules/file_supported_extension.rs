@@ -1,9 +1,8 @@
 use std::collections::HashSet;
 
 use crate::{
-    linter::{LintResult, Rule, RuleMetadata},
+    linter::{LintResult, LintTarget, Rule, RuleMetadata},
     rule_metadata,
-    track::Track,
 };
 
 static METADATA: RuleMetadata = rule_metadata! {
@@ -28,7 +27,8 @@ impl Rule for FileSupportedExtensionRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> LintResult {
+    fn check(&self, target: &LintTarget) -> LintResult {
+        let track = &target.track;
         let supported: HashSet<&str> = ["mp3", "aiff"].into_iter().collect();
         let ext = track
             .file
@@ -55,7 +55,11 @@ mod tests {
     #[test]
     fn ok_case() {
         let track = make_track();
-        assert!(FileSupportedExtensionRule.check(&track).is_passed());
+        assert!(
+            FileSupportedExtensionRule
+                .check(&track.into())
+                .is_passed()
+        );
     }
 
     #[test]
@@ -63,7 +67,10 @@ mod tests {
         let mut track = make_track();
         track.file.file_path = PathBuf::from("x/test.ogg");
         assert_eq!(
-            FileSupportedExtensionRule.check(&track).violations().len(),
+            FileSupportedExtensionRule
+                .check(&track.into())
+                .violations()
+                .len(),
             1
         );
     }

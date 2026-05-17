@@ -1,7 +1,6 @@
 use crate::{
-    linter::{LintResult, Rule, RuleMetadata},
+    linter::{LintResult, LintTarget, Rule, RuleMetadata},
     rule_metadata,
-    track::Track,
 };
 
 static METADATA: RuleMetadata = rule_metadata! {
@@ -33,7 +32,8 @@ impl Rule for MetaRequiredFieldsPresentRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> LintResult {
+    fn check(&self, target: &LintTarget) -> LintResult {
+        let track = &target.track;
         let required = [
             ("artist", track.fields.artist.as_deref()),
             ("title", track.fields.title.as_deref()),
@@ -58,7 +58,7 @@ mod tests {
     fn ok_case() {
         assert!(
             MetaRequiredFieldsPresentRule
-                .check(&make_track())
+                .check(&make_track().into())
                 .is_passed()
         );
     }
@@ -69,7 +69,7 @@ mod tests {
         track.fields.artist = None;
         assert_eq!(
             MetaRequiredFieldsPresentRule
-                .check(&track)
+                .check(&track.into())
                 .violations()
                 .len(),
             1
@@ -82,7 +82,7 @@ mod tests {
         track.fields.title = None;
         assert_eq!(
             MetaRequiredFieldsPresentRule
-                .check(&track)
+                .check(&track.into())
                 .violations()
                 .len(),
             1
@@ -95,7 +95,7 @@ mod tests {
         track.fields.media_hash = None;
         assert_eq!(
             MetaRequiredFieldsPresentRule
-                .check(&track)
+                .check(&track.into())
                 .violations()
                 .len(),
             1
@@ -110,7 +110,7 @@ mod tests {
         track.fields.media_hash = None;
         assert_eq!(
             MetaRequiredFieldsPresentRule
-                .check(&track)
+                .check(&track.into())
                 .violations()
                 .len(),
             3
@@ -123,7 +123,7 @@ mod tests {
         track.fields.artist = Some("   ".to_string());
         assert_eq!(
             MetaRequiredFieldsPresentRule
-                .check(&track)
+                .check(&track.into())
                 .violations()
                 .len(),
             1
@@ -136,7 +136,7 @@ mod tests {
         track.fields.title = Some(String::new());
         assert_eq!(
             MetaRequiredFieldsPresentRule
-                .check(&track)
+                .check(&track.into())
                 .violations()
                 .len(),
             1

@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, Rule, RuleMetadata},
+    linter::{LintResult, LintTarget, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -45,7 +45,8 @@ impl Rule for BpmNumericRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> LintResult {
+    fn check(&self, target: &LintTarget) -> LintResult {
+        let track = &target.track;
         let Some(bpm) = track.fields.bpm.as_deref() else {
             return LintResult::Passed;
         };
@@ -107,24 +108,25 @@ fn fix_strip_trailing_decimal_zero(track: &mut Track) {
 #[cfg(test)]
 mod tests {
     use super::BpmNumericRule;
-    use crate::linter::{Rule, test_utils::make_track};
+    use crate::linter::{LintTarget, Rule, test_utils::make_track};
 
     fn check_with(bpm: &str) -> crate::linter::LintResult {
         let mut track = make_track();
         track.fields.bpm = Some(bpm.to_string());
-        BpmNumericRule.check(&track)
+        BpmNumericRule.check(&track.into())
     }
 
     fn fix_all(bpm: &str) -> String {
         let mut track = make_track();
         track.fields.bpm = Some(bpm.to_string());
-        let result = BpmNumericRule.check(&track);
+        let mut target: LintTarget = track.into();
+        let result = BpmNumericRule.check(&target);
         for v in result.violations() {
             if let Some(fix) = &v.fix {
-                fix.apply(&mut track);
+                fix.apply(&mut target.track);
             }
         }
-        track.fields.bpm.unwrap()
+        target.track.fields.bpm.unwrap()
     }
 
     #[test]

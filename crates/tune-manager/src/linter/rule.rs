@@ -1,9 +1,7 @@
-use crate::{
-    linter::{
-        result::LintResult,
-        violation::{RuleSeverity, RuleViolation},
-    },
-    track::Track,
+use crate::linter::{
+    lint_target::LintTarget,
+    result::LintResult,
+    violation::{RuleSeverity, RuleViolation},
 };
 
 /// Static metadata describing a rule. Each rule defines a single `METADATA`
@@ -50,7 +48,7 @@ macro_rules! rule_metadata {
 pub trait Rule: Send + Sync {
     fn metadata(&self) -> &'static RuleMetadata;
 
-    fn check(&self, track: &Track) -> LintResult;
+    fn check(&self, target: &LintTarget) -> LintResult;
 
     /// Build an `Error`-severity violation tagged with this rule's id.
     fn error(&self, message: impl Into<String>) -> RuleViolation

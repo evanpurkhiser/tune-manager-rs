@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, Rule, RuleMetadata},
+    linter::{LintResult, LintTarget, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -42,7 +42,8 @@ impl Rule for MetaRemixerTitleConsistencyRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> LintResult {
+    fn check(&self, target: &LintTarget) -> LintResult {
+        let track = &target.track;
         let title = track.fields.title.as_deref().unwrap_or_default();
         let remixer = track
             .fields
@@ -83,14 +84,18 @@ fn extract_remixer_from_title(track: &mut Track) {
 #[cfg(test)]
 mod tests {
     use super::MetaRemixerTitleConsistencyRule;
-    use crate::linter::{Rule, test_utils::make_track};
+    use crate::linter::{LintTarget, Rule, test_utils::make_track};
 
     #[test]
     fn ok_case() {
         let mut track = make_track();
         track.fields.title = Some("Song (Remixer Remix)".to_string());
         track.fields.remixer = Some("Remixer".to_string());
-        assert!(MetaRemixerTitleConsistencyRule.check(&track).is_passed());
+        assert!(
+            MetaRemixerTitleConsistencyRule
+                .check(&track.into())
+                .is_passed()
+        );
     }
 
     #[test]
@@ -100,7 +105,7 @@ mod tests {
         track.fields.remixer = Some("Remixer".to_string());
         assert_eq!(
             MetaRemixerTitleConsistencyRule
-                .check(&track)
+                .check(&track.into())
                 .violations()
                 .len(),
             1
@@ -114,7 +119,7 @@ mod tests {
         track.fields.remixer = Some("Remixer".to_string());
         assert_eq!(
             MetaRemixerTitleConsistencyRule
-                .check(&track)
+                .check(&track.into())
                 .violations()
                 .len(),
             1
@@ -126,7 +131,11 @@ mod tests {
         let mut track = make_track();
         track.fields.title = Some("Song (Extended Mix)".to_string());
         track.fields.remixer = None;
-        assert!(MetaRemixerTitleConsistencyRule.check(&track).is_passed());
+        assert!(
+            MetaRemixerTitleConsistencyRule
+                .check(&track.into())
+                .is_passed()
+        );
     }
 
     #[test]
@@ -136,7 +145,7 @@ mod tests {
         track.fields.remixer = Some("Remixer".to_string());
         assert_eq!(
             MetaRemixerTitleConsistencyRule
-                .check(&track)
+                .check(&track.into())
                 .violations()
                 .len(),
             1
@@ -148,14 +157,15 @@ mod tests {
         let mut track = make_track();
         track.fields.title = Some("Song (Remixer Remix)".to_string());
         track.fields.remixer = None;
-        let result = MetaRemixerTitleConsistencyRule.check(&track);
+        let mut target: LintTarget = track.into();
+        let result = MetaRemixerTitleConsistencyRule.check(&target);
         assert_eq!(result.violations().len(), 1);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
-            .apply(&mut track);
-        assert_eq!(track.fields.remixer.as_deref(), Some("Remixer"));
+            .apply(&mut target.track);
+        assert_eq!(target.track.fields.remixer.as_deref(), Some("Remixer"));
     }
 
     #[test]
@@ -163,14 +173,15 @@ mod tests {
         let mut track = make_track();
         track.fields.title = Some("Song (Other Remix)".to_string());
         track.fields.remixer = Some("Remixer".to_string());
-        let result = MetaRemixerTitleConsistencyRule.check(&track);
+        let mut target: LintTarget = track.into();
+        let result = MetaRemixerTitleConsistencyRule.check(&target);
         assert_eq!(result.violations().len(), 1);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
-            .apply(&mut track);
-        assert_eq!(track.fields.remixer.as_deref(), Some("Other"));
+            .apply(&mut target.track);
+        assert_eq!(target.track.fields.remixer.as_deref(), Some("Other"));
     }
 
     #[test]
@@ -180,7 +191,7 @@ mod tests {
         let mut track = make_track();
         track.fields.title = Some("Song".to_string());
         track.fields.remixer = Some("Remixer".to_string());
-        let result = MetaRemixerTitleConsistencyRule.check(&track);
+        let result = MetaRemixerTitleConsistencyRule.check(&track.into());
         assert_eq!(result.violations().len(), 1);
         assert!(result.violations()[0].fix.is_none());
     }
@@ -190,12 +201,13 @@ mod tests {
         let mut track = make_track();
         track.fields.title = Some("Song (Some Artist Remix)".to_string());
         track.fields.remixer = None;
-        let result = MetaRemixerTitleConsistencyRule.check(&track);
+        let mut target: LintTarget = track.into();
+        let result = MetaRemixerTitleConsistencyRule.check(&target);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
-            .apply(&mut track);
-        assert_eq!(track.fields.remixer.as_deref(), Some("Some Artist"));
+            .apply(&mut target.track);
+        assert_eq!(target.track.fields.remixer.as_deref(), Some("Some Artist"));
     }
 }

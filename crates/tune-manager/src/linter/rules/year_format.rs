@@ -2,9 +2,8 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, Rule, RuleMetadata},
+    linter::{LintResult, LintTarget, Rule, RuleMetadata},
     rule_metadata,
-    track::Track,
 };
 
 static METADATA: RuleMetadata = rule_metadata! {
@@ -31,7 +30,8 @@ impl Rule for YearFormatRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> LintResult {
+    fn check(&self, target: &LintTarget) -> LintResult {
+        let track = &target.track;
         let Some(year) = track.fields.year.as_deref() else {
             return LintResult::Passed;
         };
@@ -50,20 +50,26 @@ mod tests {
 
     #[test]
     fn ok_case() {
-        assert!(YearFormatRule.check(&make_track()).is_passed());
+        assert!(YearFormatRule.check(&make_track().into()).is_passed());
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
         track.fields.year = Some("15".to_string());
-        assert_eq!(YearFormatRule.check(&track).violations().len(), 1);
+        assert_eq!(
+            YearFormatRule.check(&track.into()).violations().len(),
+            1
+        );
     }
 
     #[test]
     fn fail_case_with_whitespace() {
         let mut track = make_track();
         track.fields.year = Some(" 2015 ".to_string());
-        assert_eq!(YearFormatRule.check(&track).violations().len(), 1);
+        assert_eq!(
+            YearFormatRule.check(&track.into()).violations().len(),
+            1
+        );
     }
 }

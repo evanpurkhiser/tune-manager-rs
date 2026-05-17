@@ -1,7 +1,6 @@
 use crate::{
-    linter::{LintResult, Rule, RuleMetadata},
+    linter::{LintResult, LintTarget, Rule, RuleMetadata},
     rule_metadata,
-    track::Track,
 };
 
 static METADATA: RuleMetadata = rule_metadata! {
@@ -26,7 +25,8 @@ impl Rule for PathMatchesCanonicalRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> LintResult {
+    fn check(&self, target: &LintTarget) -> LintResult {
+        let track = &target.track;
         let canonical = track.cononical_path();
         let actual = &track.file.file_path;
 
@@ -53,7 +53,7 @@ mod tests {
     #[test]
     fn ok_case() {
         let track = make_track();
-        assert!(PathMatchesCanonicalRule.check(&track).is_passed());
+        assert!(PathMatchesCanonicalRule.check(&track.into()).is_passed());
     }
 
     #[test]
@@ -61,6 +61,12 @@ mod tests {
         let mut track = make_track();
         track.file.file_path =
             PathBuf::from("Publisher/[RLS] Album/Disc 2/99. [10A] Artist - Title.MP3");
-        assert_eq!(PathMatchesCanonicalRule.check(&track).violations().len(), 1);
+        assert_eq!(
+            PathMatchesCanonicalRule
+                .check(&track.into())
+                .violations()
+                .len(),
+            1
+        );
     }
 }

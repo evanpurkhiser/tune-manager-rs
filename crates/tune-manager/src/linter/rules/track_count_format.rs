@@ -1,8 +1,7 @@
 use crate::{
     fields::CountField,
-    linter::{LintResult, Rule, RuleMetadata},
+    linter::{LintResult, LintTarget, Rule, RuleMetadata},
     rule_metadata,
-    track::Track,
 };
 
 static METADATA: RuleMetadata = rule_metadata! {
@@ -27,7 +26,8 @@ impl Rule for TrackCountFormatRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> LintResult {
+    fn check(&self, target: &LintTarget) -> LintResult {
+        let track = &target.track;
         match track.fields.track.as_ref() {
             None => LintResult::Passed,
             Some(CountField::Invalid(_)) => self.error("Track number format is invalid").into(),
@@ -49,13 +49,23 @@ mod tests {
 
     #[test]
     fn ok_case() {
-        assert!(TrackCountFormatRule.check(&make_track()).is_passed());
+        assert!(
+            TrackCountFormatRule
+                .check(&make_track().into())
+                .is_passed()
+        );
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
         track.fields.track = Some(CountField::Invalid("x".to_string()));
-        assert_eq!(TrackCountFormatRule.check(&track).violations().len(), 1);
+        assert_eq!(
+            TrackCountFormatRule
+                .check(&track.into())
+                .violations()
+                .len(),
+            1
+        );
     }
 }

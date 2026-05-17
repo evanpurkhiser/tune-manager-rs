@@ -2,9 +2,8 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, Rule, RuleMetadata},
+    linter::{LintResult, LintTarget, Rule, RuleMetadata},
     rule_metadata,
-    track::Track,
 };
 
 static METADATA: RuleMetadata = rule_metadata! {
@@ -33,7 +32,8 @@ impl Rule for TitleNoFeaturingTokenRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> LintResult {
+    fn check(&self, target: &LintTarget) -> LintResult {
+        let track = &target.track;
         let Some(title) = track.fields.title.as_deref() else {
             return LintResult::Passed;
         };
@@ -53,7 +53,11 @@ mod tests {
 
     #[test]
     fn ok_case() {
-        assert!(TitleNoFeaturingTokenRule.check(&make_track()).is_passed());
+        assert!(
+            TitleNoFeaturingTokenRule
+                .check(&make_track().into())
+                .is_passed()
+        );
     }
 
     #[test]
@@ -61,7 +65,10 @@ mod tests {
         let mut track = make_track();
         track.fields.title = Some("Song feat. Singer".to_string());
         assert_eq!(
-            TitleNoFeaturingTokenRule.check(&track).violations().len(),
+            TitleNoFeaturingTokenRule
+                .check(&track.into())
+                .violations()
+                .len(),
             1
         );
     }
@@ -71,7 +78,10 @@ mod tests {
         let mut track = make_track();
         track.fields.title = Some("Song ft Singer".to_string());
         assert_eq!(
-            TitleNoFeaturingTokenRule.check(&track).violations().len(),
+            TitleNoFeaturingTokenRule
+                .check(&track.into())
+                .violations()
+                .len(),
             1
         );
     }

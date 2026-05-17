@@ -2,9 +2,8 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, Rule, RuleMetadata},
+    linter::{LintResult, LintTarget, Rule, RuleMetadata},
     rule_metadata,
-    track::Track,
 };
 
 static METADATA: RuleMetadata = rule_metadata! {
@@ -37,7 +36,8 @@ impl Rule for TitleMixSuffixStyleRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> LintResult {
+    fn check(&self, target: &LintTarget) -> LintResult {
+        let track = &target.track;
         let Some(title) = track.fields.title.as_deref() else {
             return LintResult::Passed;
         };
@@ -79,32 +79,39 @@ fn title_case(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::TitleMixSuffixStyleRule;
-    use crate::linter::{Rule, test_utils::make_track};
+    use crate::linter::{LintTarget, Rule, test_utils::make_track};
 
     #[test]
     fn ok_case() {
         let mut track = make_track();
         track.fields.title = Some("Song (Artist Remix)".to_string());
-        assert!(TitleMixSuffixStyleRule.check(&track).is_passed());
+        assert!(TitleMixSuffixStyleRule.check(&track.into()).is_passed());
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
         track.fields.title = Some("Song (artist remix)".to_string());
-        assert_eq!(TitleMixSuffixStyleRule.check(&track).violations().len(), 1);
+        assert_eq!(
+            TitleMixSuffixStyleRule
+                .check(&track.into())
+                .violations()
+                .len(),
+            1
+        );
     }
 
     fn fixed_title(input: &str) -> String {
         let mut track = make_track();
         track.fields.title = Some(input.to_string());
-        let result = TitleMixSuffixStyleRule.check(&track);
+        let mut target: LintTarget = track.into();
+        let result = TitleMixSuffixStyleRule.check(&target);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
-            .apply(&mut track);
-        track.fields.title.unwrap()
+            .apply(&mut target.track);
+        target.track.fields.title.unwrap()
     }
 
     #[test]
@@ -134,7 +141,13 @@ mod tests {
     fn fail_when_one_group_canonical_and_one_not() {
         let mut track = make_track();
         track.fields.title = Some("Song (artist remix) (Foo Edit)".to_string());
-        assert_eq!(TitleMixSuffixStyleRule.check(&track).violations().len(), 1);
+        assert_eq!(
+            TitleMixSuffixStyleRule
+                .check(&track.into())
+                .violations()
+                .len(),
+            1
+        );
     }
 
     #[test]

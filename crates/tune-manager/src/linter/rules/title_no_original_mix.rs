@@ -2,9 +2,8 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, Rule, RuleMetadata},
+    linter::{LintResult, LintTarget, Rule, RuleMetadata},
     rule_metadata,
-    track::Track,
 };
 
 static METADATA: RuleMetadata = rule_metadata! {
@@ -36,7 +35,8 @@ impl Rule for TitleNoOriginalMixRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> LintResult {
+    fn check(&self, target: &LintTarget) -> LintResult {
+        let track = &target.track;
         let Some(title) = track.fields.title.as_deref() else {
             return LintResult::Passed;
         };
@@ -60,30 +60,41 @@ fn strip_original_mix(title: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::TitleNoOriginalMixRule;
-    use crate::linter::{Rule, test_utils::make_track};
+    use crate::linter::{LintTarget, Rule, test_utils::make_track};
 
     #[test]
     fn ok_case() {
-        assert!(TitleNoOriginalMixRule.check(&make_track()).is_passed());
+        assert!(
+            TitleNoOriginalMixRule
+                .check(&make_track().into())
+                .is_passed()
+        );
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
         track.fields.title = Some("Song (Original Mix)".to_string());
-        assert_eq!(TitleNoOriginalMixRule.check(&track).violations().len(), 1);
+        assert_eq!(
+            TitleNoOriginalMixRule
+                .check(&track.into())
+                .violations()
+                .len(),
+            1
+        );
     }
 
     fn fixed_title(input: &str) -> String {
         let mut track = make_track();
         track.fields.title = Some(input.to_string());
-        let result = TitleNoOriginalMixRule.check(&track);
+        let mut target: LintTarget = track.into();
+        let result = TitleNoOriginalMixRule.check(&target);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
-            .apply(&mut track);
-        track.fields.title.unwrap()
+            .apply(&mut target.track);
+        target.track.fields.title.unwrap()
     }
 
     #[test]

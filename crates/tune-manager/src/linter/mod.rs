@@ -1,3 +1,4 @@
+pub mod lint_target;
 pub mod result;
 pub mod rule;
 pub mod rules;
@@ -7,6 +8,7 @@ pub mod violation;
 #[cfg(test)]
 pub mod test_utils;
 
+pub use lint_target::LintTarget;
 pub use result::LintResult;
 pub use rule::{Rule, RuleMetadata};
 pub use text_field::TextField;

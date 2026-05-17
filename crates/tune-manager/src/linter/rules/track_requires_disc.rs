@@ -1,7 +1,6 @@
 use crate::{
-    linter::{LintResult, Rule, RuleMetadata},
+    linter::{LintResult, LintTarget, Rule, RuleMetadata},
     rule_metadata,
-    track::Track,
 };
 
 static METADATA: RuleMetadata = rule_metadata! {
@@ -25,7 +24,8 @@ impl Rule for TrackRequiresDiscRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> LintResult {
+    fn check(&self, target: &LintTarget) -> LintResult {
+        let track = &target.track;
         if track.fields.track.is_some() && track.fields.disc.is_none() {
             return self.error("Track is present but disc is missing").into();
         }
@@ -40,13 +40,23 @@ mod tests {
 
     #[test]
     fn ok_case() {
-        assert!(TrackRequiresDiscRule.check(&make_track()).is_passed());
+        assert!(
+            TrackRequiresDiscRule
+                .check(&make_track().into())
+                .is_passed()
+        );
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
         track.fields.disc = None;
-        assert_eq!(TrackRequiresDiscRule.check(&track).violations().len(), 1);
+        assert_eq!(
+            TrackRequiresDiscRule
+                .check(&track.into())
+                .violations()
+                .len(),
+            1
+        );
     }
 }

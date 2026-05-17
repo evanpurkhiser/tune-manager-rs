@@ -1,7 +1,6 @@
 use crate::{
-    linter::{LintResult, Rule, RuleMetadata},
+    linter::{LintResult, LintTarget, Rule, RuleMetadata},
     rule_metadata,
-    track::Track,
 };
 
 static METADATA: RuleMetadata = rule_metadata! {
@@ -26,7 +25,8 @@ impl Rule for MetaPublisherCatalogPairingRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> LintResult {
+    fn check(&self, target: &LintTarget) -> LintResult {
+        let track = &target.track;
         let publisher = track
             .fields
             .publisher
@@ -61,7 +61,7 @@ mod tests {
     fn ok_both_present() {
         assert!(
             MetaPublisherCatalogPairingRule
-                .check(&make_track())
+                .check(&make_track().into())
                 .is_passed()
         );
     }
@@ -71,14 +71,18 @@ mod tests {
         let mut track = make_track();
         track.fields.publisher = None;
         track.fields.catalog_id = None;
-        assert!(MetaPublisherCatalogPairingRule.check(&track).is_passed());
+        assert!(
+            MetaPublisherCatalogPairingRule
+                .check(&track.into())
+                .is_passed()
+        );
     }
 
     #[test]
     fn warn_publisher_without_catalog() {
         let mut track = make_track();
         track.fields.catalog_id = None;
-        let result = MetaPublisherCatalogPairingRule.check(&track);
+        let result = MetaPublisherCatalogPairingRule.check(&track.into());
         assert_eq!(result.violations().len(), 1);
         assert_eq!(result.violations()[0].severity, RuleSeverity::Warn);
     }
@@ -87,7 +91,7 @@ mod tests {
     fn error_catalog_without_publisher() {
         let mut track = make_track();
         track.fields.publisher = None;
-        let result = MetaPublisherCatalogPairingRule.check(&track);
+        let result = MetaPublisherCatalogPairingRule.check(&track.into());
         assert_eq!(result.violations().len(), 1);
         assert_eq!(result.violations()[0].severity, RuleSeverity::Error);
     }
@@ -96,7 +100,7 @@ mod tests {
     fn warn_whitespace_catalog() {
         let mut track = make_track();
         track.fields.catalog_id = Some("   ".to_string());
-        let result = MetaPublisherCatalogPairingRule.check(&track);
+        let result = MetaPublisherCatalogPairingRule.check(&track.into());
         assert_eq!(result.violations().len(), 1);
         assert_eq!(result.violations()[0].severity, RuleSeverity::Warn);
     }

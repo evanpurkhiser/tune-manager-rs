@@ -2,9 +2,8 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, Rule, RuleMetadata},
+    linter::{LintResult, LintTarget, Rule, RuleMetadata},
     rule_metadata,
-    track::Track,
 };
 
 static METADATA: RuleMetadata = rule_metadata! {
@@ -41,7 +40,8 @@ impl Rule for ArtistSeparatorStandardizationRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> LintResult {
+    fn check(&self, target: &LintTarget) -> LintResult {
+        let track = &target.track;
         let Some(artist) = track.fields.artist.as_deref() else {
             return LintResult::Passed;
         };
@@ -73,13 +73,17 @@ fn standardize_separators(artist: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::ArtistSeparatorStandardizationRule;
-    use crate::linter::{Rule, test_utils::make_track};
+    use crate::linter::{LintTarget, Rule, test_utils::make_track};
 
     #[test]
     fn ok_case() {
         let mut track = make_track();
         track.fields.artist = Some("A & B".to_string());
-        assert!(ArtistSeparatorStandardizationRule.check(&track).is_passed());
+        assert!(
+            ArtistSeparatorStandardizationRule
+                .check(&track.into())
+                .is_passed()
+        );
     }
 
     #[test]
@@ -88,7 +92,7 @@ mod tests {
         track.fields.artist = Some("A and B".to_string());
         assert_eq!(
             ArtistSeparatorStandardizationRule
-                .check(&track)
+                .check(&track.into())
                 .violations()
                 .len(),
             1
@@ -101,7 +105,7 @@ mod tests {
         track.fields.artist = Some("A versus B".to_string());
         assert_eq!(
             ArtistSeparatorStandardizationRule
-                .check(&track)
+                .check(&track.into())
                 .violations()
                 .len(),
             1
@@ -111,13 +115,14 @@ mod tests {
     fn fixed_artist(input: &str) -> String {
         let mut track = make_track();
         track.fields.artist = Some(input.to_string());
-        let result = ArtistSeparatorStandardizationRule.check(&track);
+        let mut target: LintTarget = track.into();
+        let result = ArtistSeparatorStandardizationRule.check(&target);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
-            .apply(&mut track);
-        track.fields.artist.unwrap()
+            .apply(&mut target.track);
+        target.track.fields.artist.unwrap()
     }
 
     #[test]

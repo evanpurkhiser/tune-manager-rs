@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, Rule, RuleMetadata},
+    linter::{LintResult, LintTarget, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -43,7 +43,8 @@ impl Rule for KeyCanonicalCamelotRule {
         &METADATA
     }
 
-    fn check(&self, track: &Track) -> LintResult {
+    fn check(&self, target: &LintTarget) -> LintResult {
+        let track = &target.track;
         let Some(key) = track.fields.key.as_deref() else {
             return LintResult::Passed;
         };
@@ -173,24 +174,25 @@ fn musical_minor_to_number(note: &str) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::KeyCanonicalCamelotRule;
-    use crate::linter::{Rule, test_utils::make_track};
+    use crate::linter::{LintTarget, Rule, test_utils::make_track};
 
     fn check_with(key: &str) -> crate::linter::LintResult {
         let mut track = make_track();
         track.fields.key = Some(key.to_string());
-        KeyCanonicalCamelotRule.check(&track)
+        KeyCanonicalCamelotRule.check(&track.into())
     }
 
     fn fixed(key: &str) -> String {
         let mut track = make_track();
         track.fields.key = Some(key.to_string());
-        let result = KeyCanonicalCamelotRule.check(&track);
+        let mut target: LintTarget = track.into();
+        let result = KeyCanonicalCamelotRule.check(&target);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
-            .apply(&mut track);
-        track.fields.key.unwrap()
+            .apply(&mut target.track);
+        target.track.fields.key.unwrap()
     }
 
     #[test]
