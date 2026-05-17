@@ -34,7 +34,7 @@ impl Rule for TitleNoFeaturingTokenRule {
     }
 
     fn check(&self, track: &Track) -> LintResult {
-        let Some(title) = track.tags.title.as_deref() else {
+        let Some(title) = track.fields.title.as_deref() else {
             return LintResult::Passed;
         };
         if FEAT_RE.is_match(title) {
@@ -59,7 +59,7 @@ mod tests {
     #[test]
     fn fail_case() {
         let mut track = make_track();
-        track.tags.title = Some("Song feat. Singer".to_string());
+        track.fields.title = Some("Song feat. Singer".to_string());
         assert_eq!(
             TitleNoFeaturingTokenRule.check(&track).violations().len(),
             1
@@ -69,7 +69,7 @@ mod tests {
     #[test]
     fn fail_case_ft() {
         let mut track = make_track();
-        track.tags.title = Some("Song ft Singer".to_string());
+        track.fields.title = Some("Song ft Singer".to_string());
         assert_eq!(
             TitleNoFeaturingTokenRule.check(&track).violations().len(),
             1

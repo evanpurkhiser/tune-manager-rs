@@ -28,13 +28,13 @@ impl Rule for MetaPublisherCatalogPairingRule {
 
     fn check(&self, track: &Track) -> LintResult {
         let publisher = track
-            .tags
+            .fields
             .publisher
             .as_deref()
             .map(str::trim)
             .filter(|v| !v.is_empty());
         let catalog_id = track
-            .tags
+            .fields
             .catalog_id
             .as_deref()
             .map(str::trim)
@@ -69,15 +69,15 @@ mod tests {
     #[test]
     fn ok_both_missing() {
         let mut track = make_track();
-        track.tags.publisher = None;
-        track.tags.catalog_id = None;
+        track.fields.publisher = None;
+        track.fields.catalog_id = None;
         assert!(MetaPublisherCatalogPairingRule.check(&track).is_passed());
     }
 
     #[test]
     fn warn_publisher_without_catalog() {
         let mut track = make_track();
-        track.tags.catalog_id = None;
+        track.fields.catalog_id = None;
         let result = MetaPublisherCatalogPairingRule.check(&track);
         assert_eq!(result.violations().len(), 1);
         assert_eq!(result.violations()[0].severity, RuleSeverity::Warn);
@@ -86,7 +86,7 @@ mod tests {
     #[test]
     fn error_catalog_without_publisher() {
         let mut track = make_track();
-        track.tags.publisher = None;
+        track.fields.publisher = None;
         let result = MetaPublisherCatalogPairingRule.check(&track);
         assert_eq!(result.violations().len(), 1);
         assert_eq!(result.violations()[0].severity, RuleSeverity::Error);
@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn warn_whitespace_catalog() {
         let mut track = make_track();
-        track.tags.catalog_id = Some("   ".to_string());
+        track.fields.catalog_id = Some("   ".to_string());
         let result = MetaPublisherCatalogPairingRule.check(&track);
         assert_eq!(result.violations().len(), 1);
         assert_eq!(result.violations()[0].severity, RuleSeverity::Warn);

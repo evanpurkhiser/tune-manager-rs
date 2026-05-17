@@ -31,7 +31,7 @@ impl Rule for FileSupportedExtensionRule {
     fn check(&self, track: &Track) -> LintResult {
         let supported: HashSet<&str> = ["mp3", "aiff"].into_iter().collect();
         let ext = track
-            .metadata
+            .file
             .file_path
             .extension()
             .and_then(|s| s.to_str())
@@ -61,7 +61,7 @@ mod tests {
     #[test]
     fn fail_case() {
         let mut track = make_track();
-        track.metadata.file_path = PathBuf::from("x/test.ogg");
+        track.file.file_path = PathBuf::from("x/test.ogg");
         assert_eq!(
             FileSupportedExtensionRule.check(&track).violations().len(),
             1

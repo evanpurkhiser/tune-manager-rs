@@ -28,7 +28,7 @@ impl Rule for DiscCountFormatRule {
     }
 
     fn check(&self, track: &Track) -> LintResult {
-        match track.tags.disc.as_ref() {
+        match track.fields.disc.as_ref() {
             None => LintResult::Passed,
             Some(CountField::Invalid(_)) => self.error("Disc number format is invalid").into(),
             Some(CountField::Valid(c)) if c.number == 0 || c.total == 0 || c.number > c.total => {
@@ -55,7 +55,7 @@ mod tests {
     #[test]
     fn fail_case() {
         let mut track = make_track();
-        track.tags.disc = Some(CountField::Invalid("x".to_string()));
+        track.fields.disc = Some(CountField::Invalid("x".to_string()));
         assert_eq!(DiscCountFormatRule.check(&track).violations().len(), 1);
     }
 }

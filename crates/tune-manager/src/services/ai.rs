@@ -15,7 +15,7 @@ use serde::Serialize;
 use serde_json::Value;
 use thiserror::Error;
 
-use crate::{track::Track, track::TrackTags};
+use crate::{track::Track, track::TrackFields};
 
 mod schema_types {
     typify::import_types!("src/services/schema/track-prompt.json");
@@ -24,20 +24,20 @@ mod schema_types {
 pub type TrackResponse = schema_types::Track;
 
 impl schema_types::Track {
-    /// Updates the provided TrackTags with information from AI processing
-    pub fn update_track_tags(&self, tags: &mut TrackTags) {
-        tags.artist = Some(self.artist.clone().into());
-        tags.title = Some(self.title.clone().into());
-        tags.album = self.album.clone().into();
-        tags.remixer = self.remixer.clone().into();
-        tags.publisher = self.publisher.clone().into();
-        tags.catalog_id = self.catalog_id.clone().into();
-        tags.genre = self.genre.clone().into();
-        tags.year = self.year.map(|y| y.to_string());
+    /// Updates the provided [`TrackFields`] with information from AI processing
+    pub fn update_track_fields(&self, fields: &mut TrackFields) {
+        fields.artist = Some(self.artist.clone().into());
+        fields.title = Some(self.title.clone().into());
+        fields.album = self.album.clone().into();
+        fields.remixer = self.remixer.clone().into();
+        fields.publisher = self.publisher.clone().into();
+        fields.catalog_id = self.catalog_id.clone().into();
+        fields.genre = self.genre.clone().into();
+        fields.year = self.year.map(|y| y.to_string());
 
         // Parse disc and track fields from AI response
-        tags.disc = self.disc.as_ref().and_then(|d| d.parse().ok());
-        tags.track = self.track.as_ref().and_then(|d| d.parse().ok());
+        fields.disc = self.disc.as_ref().and_then(|d| d.parse().ok());
+        fields.track = self.track.as_ref().and_then(|d| d.parse().ok());
 
         // Note: key and bpm are preserved from previous stages and not updated by AI
     }
@@ -142,26 +142,26 @@ impl TryFrom<&Track> for TrackCsv {
     type Error = AiError;
 
     fn try_from(track: &Track) -> Result<Self, Self::Error> {
-        let tags = &track.tags;
-        let file_path = track.metadata.file_path.to_string_lossy().to_string();
+        let fields = &track.fields;
+        let file_path = track.file.file_path.to_string_lossy().to_string();
 
-        let media_hash = tags.media_hash.clone().ok_or(AiError::MissingMediaHash {
+        let media_hash = fields.media_hash.clone().ok_or(AiError::MissingMediaHash {
             file_path: file_path.clone(),
         })?;
 
         Ok(Self {
             media_hash,
             file_path,
-            artist: tags.artist.clone(),
-            title: tags.title.clone(),
-            album: tags.album.clone(),
-            remixer: tags.remixer.clone(),
-            publisher: tags.publisher.clone(),
-            catalog_id: tags.catalog_id.clone(),
-            year: tags.year.clone(),
-            genre: tags.genre.clone(),
-            disc: tags.disc.as_ref().map(|d| d.to_string()),
-            track: tags.track.as_ref().map(|t| t.to_string()),
+            artist: fields.artist.clone(),
+            title: fields.title.clone(),
+            album: fields.album.clone(),
+            remixer: fields.remixer.clone(),
+            publisher: fields.publisher.clone(),
+            catalog_id: fields.catalog_id.clone(),
+            year: fields.year.clone(),
+            genre: fields.genre.clone(),
+            disc: fields.disc.as_ref().map(|d| d.to_string()),
+            track: fields.track.as_ref().map(|t| t.to_string()),
         })
     }
 }
@@ -183,7 +183,7 @@ fn validate_response_media_hashes(
 ) -> Result<(), AiError> {
     let input_hashes: HashSet<_> = input_tracks
         .iter()
-        .filter_map(|t| t.tags.media_hash.as_ref())
+        .filter_map(|t| t.fields.media_hash.as_ref())
         .collect();
 
     let response_hashes: HashSet<_> = response.tracks.iter().map(|t| &t.media_hash).collect();
@@ -256,17 +256,17 @@ mod tests {
     use super::*;
     use crate::{
         fields::CountField,
-        track::{TrackMetadaata, TrackTags},
+        track::{TrackFields, TrackFile},
     };
     use std::path::PathBuf;
 
     fn create_test_track() -> Track {
         Track {
-            metadata: TrackMetadaata {
+            file: TrackFile {
                 file_path: PathBuf::from("/test/path/track.mp3"),
                 mtime: 1234567890,
             },
-            tags: TrackTags {
+            fields: TrackFields {
                 media_hash: Some("098f6bcd4621d373cade4e832627b4f6".to_string()),
                 artist: Some("Test Artist".to_string()),
                 title: Some("Test Title".to_string()),
@@ -307,13 +307,13 @@ mod tests {
     }
 
     #[test]
-    fn test_update_track_tags() {
+    fn test_update_track_fields() {
         use crate::{
             fields::{Count, CountField},
-            track::TrackTags,
+            track::TrackFields,
         };
 
-        let mut tags = TrackTags::default();
+        let mut fields = TrackFields::default();
 
         // Create AI track response
         let ai_track = schema_types::Track {
@@ -331,29 +331,29 @@ mod tests {
         };
 
         // Set some initial values that should be preserved
-        tags.key = Some("10A".to_string());
-        tags.bpm = Some("140".to_string());
+        fields.key = Some("10A".to_string());
+        fields.bpm = Some("140".to_string());
 
-        ai_track.update_track_tags(&mut tags);
+        ai_track.update_track_fields(&mut fields);
 
         // Check AI updates
-        assert_eq!(tags.artist, Some("Test Artist Ft. Vocalist".to_string()));
-        assert_eq!(tags.title, Some("Test Title (Extended Mix)".to_string()));
-        assert_eq!(tags.album, Some("Test Album".to_string()));
-        assert_eq!(tags.remixer, Some("Test Remixer".to_string()));
-        assert_eq!(tags.publisher, Some("Test Label".to_string()));
-        assert_eq!(tags.catalog_id, Some("TEST123".to_string()));
-        assert_eq!(tags.year, Some("2023".to_string()));
-        assert_eq!(tags.genre, Some("Hardcore".to_string()));
+        assert_eq!(fields.artist, Some("Test Artist Ft. Vocalist".to_string()));
+        assert_eq!(fields.title, Some("Test Title (Extended Mix)".to_string()));
+        assert_eq!(fields.album, Some("Test Album".to_string()));
+        assert_eq!(fields.remixer, Some("Test Remixer".to_string()));
+        assert_eq!(fields.publisher, Some("Test Label".to_string()));
+        assert_eq!(fields.catalog_id, Some("TEST123".to_string()));
+        assert_eq!(fields.year, Some("2023".to_string()));
+        assert_eq!(fields.genre, Some("Hardcore".to_string()));
         assert_eq!(
-            tags.disc,
+            fields.disc,
             Some(CountField::Valid(Count {
                 number: 1u8,
                 total: 2u8
             }))
         );
         assert_eq!(
-            tags.track,
+            fields.track,
             Some(CountField::Valid(Count {
                 number: 3u8,
                 total: 10u8
@@ -361,15 +361,15 @@ mod tests {
         );
 
         // Check preserved values
-        assert_eq!(tags.key, Some("10A".to_string()));
-        assert_eq!(tags.bpm, Some("140".to_string()));
+        assert_eq!(fields.key, Some("10A".to_string()));
+        assert_eq!(fields.bpm, Some("140".to_string()));
     }
 
     #[test]
-    fn test_update_track_tags_single_track() {
-        use crate::track::TrackTags;
+    fn test_update_track_fields_single_track() {
+        use crate::track::TrackFields;
 
-        let mut tags = TrackTags::default();
+        let mut fields = TrackFields::default();
 
         // Create AI track response for a single
         let ai_track = schema_types::Track {
@@ -386,26 +386,26 @@ mod tests {
             track: None.into(),
         };
 
-        ai_track.update_track_tags(&mut tags);
+        ai_track.update_track_fields(&mut fields);
 
-        assert_eq!(tags.artist, Some("Single Artist".to_string()));
-        assert_eq!(tags.title, Some("Single Title".to_string()));
-        assert_eq!(tags.album, None);
-        assert_eq!(tags.remixer, None);
-        assert_eq!(tags.publisher, Some("Single Label".to_string()));
-        assert_eq!(tags.catalog_id, Some("SINGLE001".to_string()));
-        assert_eq!(tags.year, Some("2024".to_string()));
-        assert_eq!(tags.genre, Some("Trance".to_string()));
-        assert_eq!(tags.disc, None);
-        assert_eq!(tags.track, None);
+        assert_eq!(fields.artist, Some("Single Artist".to_string()));
+        assert_eq!(fields.title, Some("Single Title".to_string()));
+        assert_eq!(fields.album, None);
+        assert_eq!(fields.remixer, None);
+        assert_eq!(fields.publisher, Some("Single Label".to_string()));
+        assert_eq!(fields.catalog_id, Some("SINGLE001".to_string()));
+        assert_eq!(fields.year, Some("2024".to_string()));
+        assert_eq!(fields.genre, Some("Trance".to_string()));
+        assert_eq!(fields.disc, None);
+        assert_eq!(fields.track, None);
     }
 
     #[test]
     fn test_tracks_to_csv_multiple_tracks() {
         let track1 = create_test_track();
         let mut track2 = create_test_track();
-        track2.tags.artist = Some("Artist Two".to_string());
-        track2.tags.title = Some("Title Two".to_string());
+        track2.fields.artist = Some("Artist Two".to_string());
+        track2.fields.title = Some("Title Two".to_string());
 
         let result = tracks_to_csv(&[track1, track2]).unwrap();
 

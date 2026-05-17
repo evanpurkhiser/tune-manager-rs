@@ -34,21 +34,21 @@ impl TextField {
 
     pub fn get(self, track: &Track) -> Option<&str> {
         match self {
-            Self::Artist => track.tags.artist.as_deref(),
-            Self::Title => track.tags.title.as_deref(),
-            Self::Album => track.tags.album.as_deref(),
-            Self::Remixer => track.tags.remixer.as_deref(),
-            Self::Publisher => track.tags.publisher.as_deref(),
+            Self::Artist => track.fields.artist.as_deref(),
+            Self::Title => track.fields.title.as_deref(),
+            Self::Album => track.fields.album.as_deref(),
+            Self::Remixer => track.fields.remixer.as_deref(),
+            Self::Publisher => track.fields.publisher.as_deref(),
         }
     }
 
     pub fn set(self, track: &mut Track, value: String) {
         match self {
-            Self::Artist => track.tags.artist = Some(value),
-            Self::Title => track.tags.title = Some(value),
-            Self::Album => track.tags.album = Some(value),
-            Self::Remixer => track.tags.remixer = Some(value),
-            Self::Publisher => track.tags.publisher = Some(value),
+            Self::Artist => track.fields.artist = Some(value),
+            Self::Title => track.fields.title = Some(value),
+            Self::Album => track.fields.album = Some(value),
+            Self::Remixer => track.fields.remixer = Some(value),
+            Self::Publisher => track.fields.publisher = Some(value),
         }
     }
 }

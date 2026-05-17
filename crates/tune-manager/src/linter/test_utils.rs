@@ -2,16 +2,16 @@ use std::path::PathBuf;
 
 use crate::{
     fields::CountField,
-    track::{Track, TrackMetadaata, TrackTags},
+    track::{Track, TrackFields, TrackFile},
 };
 
 pub fn make_track() -> Track {
     Track {
-        metadata: TrackMetadaata {
+        file: TrackFile {
             file_path: PathBuf::from("Publisher/[RLS] Album/Disc 2/01. [10A] Artist - Title.mp3"),
             mtime: 1,
         },
-        tags: TrackTags {
+        fields: TrackFields {
             media_hash: Some("abc123".to_string()),
             artist: Some("Artist".to_string()),
             title: Some("Title".to_string()),

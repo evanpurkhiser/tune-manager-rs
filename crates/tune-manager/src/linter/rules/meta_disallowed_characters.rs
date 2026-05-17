@@ -84,7 +84,7 @@ mod tests {
     #[test]
     fn fail_case() {
         let mut track = make_track();
-        track.tags.title = Some("Don’t Stop".to_string());
+        track.fields.title = Some("Don’t Stop".to_string());
         assert_eq!(
             MetaDisallowedCharactersRule
                 .check(&track)
@@ -97,8 +97,8 @@ mod tests {
     #[test]
     fn one_violation_per_affected_field() {
         let mut track = make_track();
-        track.tags.title = Some("Don’t Stop".to_string());
-        track.tags.album = Some("“Greatest Hits”".to_string());
+        track.fields.title = Some("Don’t Stop".to_string());
+        track.fields.album = Some("“Greatest Hits”".to_string());
         assert_eq!(
             MetaDisallowedCharactersRule
                 .check(&track)
@@ -111,8 +111,8 @@ mod tests {
     #[test]
     fn fix_targets_only_the_violation_field() {
         let mut track = make_track();
-        track.tags.title = Some("Don’t Stop".to_string());
-        track.tags.album = Some("Album".to_string());
+        track.fields.title = Some("Don’t Stop".to_string());
+        track.fields.album = Some("Album".to_string());
         let result = MetaDisallowedCharactersRule.check(&track);
         assert_eq!(result.violations().len(), 1);
         result.violations()[0]
@@ -120,46 +120,46 @@ mod tests {
             .as_ref()
             .unwrap()
             .apply(&mut track);
-        assert_eq!(track.tags.title.as_deref(), Some("Don't Stop"));
-        assert_eq!(track.tags.album.as_deref(), Some("Album"));
+        assert_eq!(track.fields.title.as_deref(), Some("Don't Stop"));
+        assert_eq!(track.fields.album.as_deref(), Some("Album"));
     }
 
     #[test]
     fn fix_double_smart_quotes() {
         let mut track = make_track();
-        track.tags.title = Some("“Hello”".to_string());
+        track.fields.title = Some("“Hello”".to_string());
         let result = MetaDisallowedCharactersRule.check(&track);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
             .apply(&mut track);
-        assert_eq!(track.tags.title.as_deref(), Some(r#""Hello""#));
+        assert_eq!(track.fields.title.as_deref(), Some(r#""Hello""#));
     }
 
     #[test]
     fn fix_backtick_and_acute() {
         let mut track = make_track();
-        track.tags.title = Some("It`s ´ok´".to_string());
+        track.fields.title = Some("It`s ´ok´".to_string());
         let result = MetaDisallowedCharactersRule.check(&track);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
             .apply(&mut track);
-        assert_eq!(track.tags.title.as_deref(), Some("It's 'ok'"));
+        assert_eq!(track.fields.title.as_deref(), Some("It's 'ok'"));
     }
 
     #[test]
     fn fix_each_field_when_multiple_violate() {
         let mut track = make_track();
-        track.tags.title = Some("Don’t Stop".to_string());
-        track.tags.artist = Some("A’B".to_string());
+        track.fields.title = Some("Don’t Stop".to_string());
+        track.fields.artist = Some("A’B".to_string());
         let result = MetaDisallowedCharactersRule.check(&track);
         for v in result.violations() {
             v.fix.as_ref().unwrap().apply(&mut track);
         }
-        assert_eq!(track.tags.title.as_deref(), Some("Don't Stop"));
-        assert_eq!(track.tags.artist.as_deref(), Some("A'B"));
+        assert_eq!(track.fields.title.as_deref(), Some("Don't Stop"));
+        assert_eq!(track.fields.artist.as_deref(), Some("A'B"));
     }
 }

@@ -66,7 +66,7 @@ impl Rule for ArtistSeparatorStructureRule {
     }
 
     fn check(&self, track: &Track) -> LintResult {
-        let Some(artist) = track.tags.artist.as_deref() else {
+        let Some(artist) = track.fields.artist.as_deref() else {
             return LintResult::Passed;
         };
         let mut violations = vec![];
@@ -119,38 +119,38 @@ impl Rule for ArtistSeparatorStructureRule {
 }
 
 fn fix_trim_leading(track: &mut Track) {
-    if let Some(a) = track.tags.artist.as_deref() {
-        track.tags.artist = Some(a.trim_start_matches(is_separator_or_ws).to_string());
+    if let Some(a) = track.fields.artist.as_deref() {
+        track.fields.artist = Some(a.trim_start_matches(is_separator_or_ws).to_string());
     }
 }
 
 fn fix_trim_trailing(track: &mut Track) {
-    if let Some(a) = track.tags.artist.as_deref() {
-        track.tags.artist = Some(a.trim_end_matches(is_separator_or_ws).to_string());
+    if let Some(a) = track.fields.artist.as_deref() {
+        track.fields.artist = Some(a.trim_end_matches(is_separator_or_ws).to_string());
     }
 }
 
 fn fix_space_before_comma(track: &mut Track) {
-    if let Some(a) = track.tags.artist.as_deref() {
-        track.tags.artist = Some(SPACE_BEFORE_COMMA_RE.replace_all(a, ",").to_string());
+    if let Some(a) = track.fields.artist.as_deref() {
+        track.fields.artist = Some(SPACE_BEFORE_COMMA_RE.replace_all(a, ",").to_string());
     }
 }
 
 fn fix_collapse_spaces(track: &mut Track) {
-    if let Some(a) = track.tags.artist.as_deref() {
-        track.tags.artist = Some(DOUBLE_SPACE_RE.replace_all(a, " ").to_string());
+    if let Some(a) = track.fields.artist.as_deref() {
+        track.fields.artist = Some(DOUBLE_SPACE_RE.replace_all(a, " ").to_string());
     }
 }
 
 fn fix_collapse_doubled_comma(track: &mut Track) {
-    if let Some(a) = track.tags.artist.as_deref() {
-        track.tags.artist = Some(DOUBLED_COMMA_RE.replace_all(a, ",").to_string());
+    if let Some(a) = track.fields.artist.as_deref() {
+        track.fields.artist = Some(DOUBLED_COMMA_RE.replace_all(a, ",").to_string());
     }
 }
 
 fn fix_collapse_doubled_amp(track: &mut Track) {
-    if let Some(a) = track.tags.artist.as_deref() {
-        track.tags.artist = Some(DOUBLED_AMP_RE.replace_all(a, "&").to_string());
+    if let Some(a) = track.fields.artist.as_deref() {
+        track.fields.artist = Some(DOUBLED_AMP_RE.replace_all(a, "&").to_string());
     }
 }
 
@@ -161,20 +161,20 @@ mod tests {
 
     fn check_with(artist: &str) -> crate::linter::LintResult {
         let mut track = make_track();
-        track.tags.artist = Some(artist.to_string());
+        track.fields.artist = Some(artist.to_string());
         ArtistSeparatorStructureRule.check(&track)
     }
 
     fn fix_all(artist: &str) -> String {
         let mut track = make_track();
-        track.tags.artist = Some(artist.to_string());
+        track.fields.artist = Some(artist.to_string());
         let result = ArtistSeparatorStructureRule.check(&track);
         for v in result.violations() {
             if let Some(fix) = &v.fix {
                 fix.apply(&mut track);
             }
         }
-        track.tags.artist.unwrap()
+        track.fields.artist.unwrap()
     }
 
     #[test]

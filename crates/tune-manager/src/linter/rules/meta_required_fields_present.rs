@@ -35,9 +35,9 @@ impl Rule for MetaRequiredFieldsPresentRule {
 
     fn check(&self, track: &Track) -> LintResult {
         let required = [
-            ("artist", track.tags.artist.as_deref()),
-            ("title", track.tags.title.as_deref()),
-            ("media_hash", track.tags.media_hash.as_deref()),
+            ("artist", track.fields.artist.as_deref()),
+            ("title", track.fields.title.as_deref()),
+            ("media_hash", track.fields.media_hash.as_deref()),
         ];
 
         required
@@ -66,7 +66,7 @@ mod tests {
     #[test]
     fn fail_missing_artist() {
         let mut track = make_track();
-        track.tags.artist = None;
+        track.fields.artist = None;
         assert_eq!(
             MetaRequiredFieldsPresentRule
                 .check(&track)
@@ -79,7 +79,7 @@ mod tests {
     #[test]
     fn fail_missing_title() {
         let mut track = make_track();
-        track.tags.title = None;
+        track.fields.title = None;
         assert_eq!(
             MetaRequiredFieldsPresentRule
                 .check(&track)
@@ -92,7 +92,7 @@ mod tests {
     #[test]
     fn fail_missing_media_hash() {
         let mut track = make_track();
-        track.tags.media_hash = None;
+        track.fields.media_hash = None;
         assert_eq!(
             MetaRequiredFieldsPresentRule
                 .check(&track)
@@ -105,9 +105,9 @@ mod tests {
     #[test]
     fn fail_missing_all() {
         let mut track = make_track();
-        track.tags.artist = None;
-        track.tags.title = None;
-        track.tags.media_hash = None;
+        track.fields.artist = None;
+        track.fields.title = None;
+        track.fields.media_hash = None;
         assert_eq!(
             MetaRequiredFieldsPresentRule
                 .check(&track)
@@ -120,7 +120,7 @@ mod tests {
     #[test]
     fn fail_whitespace_only() {
         let mut track = make_track();
-        track.tags.artist = Some("   ".to_string());
+        track.fields.artist = Some("   ".to_string());
         assert_eq!(
             MetaRequiredFieldsPresentRule
                 .check(&track)
@@ -133,7 +133,7 @@ mod tests {
     #[test]
     fn fail_empty_string() {
         let mut track = make_track();
-        track.tags.title = Some(String::new());
+        track.fields.title = Some(String::new());
         assert_eq!(
             MetaRequiredFieldsPresentRule
                 .check(&track)

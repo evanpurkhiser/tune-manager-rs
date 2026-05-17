@@ -38,53 +38,53 @@ struct TrimmableField {
 const FIELDS: &[TrimmableField] = &[
     TrimmableField {
         name: "artist",
-        get: |t| t.tags.artist.as_deref(),
-        set: |t, v| t.tags.artist = Some(v),
+        get: |t| t.fields.artist.as_deref(),
+        set: |t, v| t.fields.artist = Some(v),
     },
     TrimmableField {
         name: "title",
-        get: |t| t.tags.title.as_deref(),
-        set: |t, v| t.tags.title = Some(v),
+        get: |t| t.fields.title.as_deref(),
+        set: |t, v| t.fields.title = Some(v),
     },
     TrimmableField {
         name: "album",
-        get: |t| t.tags.album.as_deref(),
-        set: |t, v| t.tags.album = Some(v),
+        get: |t| t.fields.album.as_deref(),
+        set: |t, v| t.fields.album = Some(v),
     },
     TrimmableField {
         name: "remixer",
-        get: |t| t.tags.remixer.as_deref(),
-        set: |t, v| t.tags.remixer = Some(v),
+        get: |t| t.fields.remixer.as_deref(),
+        set: |t, v| t.fields.remixer = Some(v),
     },
     TrimmableField {
         name: "publisher",
-        get: |t| t.tags.publisher.as_deref(),
-        set: |t, v| t.tags.publisher = Some(v),
+        get: |t| t.fields.publisher.as_deref(),
+        set: |t, v| t.fields.publisher = Some(v),
     },
     TrimmableField {
         name: "catalog_id",
-        get: |t| t.tags.catalog_id.as_deref(),
-        set: |t, v| t.tags.catalog_id = Some(v),
+        get: |t| t.fields.catalog_id.as_deref(),
+        set: |t, v| t.fields.catalog_id = Some(v),
     },
     TrimmableField {
         name: "year",
-        get: |t| t.tags.year.as_deref(),
-        set: |t, v| t.tags.year = Some(v),
+        get: |t| t.fields.year.as_deref(),
+        set: |t, v| t.fields.year = Some(v),
     },
     TrimmableField {
         name: "genre",
-        get: |t| t.tags.genre.as_deref(),
-        set: |t, v| t.tags.genre = Some(v),
+        get: |t| t.fields.genre.as_deref(),
+        set: |t, v| t.fields.genre = Some(v),
     },
     TrimmableField {
         name: "key",
-        get: |t| t.tags.key.as_deref(),
-        set: |t, v| t.tags.key = Some(v),
+        get: |t| t.fields.key.as_deref(),
+        set: |t, v| t.fields.key = Some(v),
     },
     TrimmableField {
         name: "bpm",
-        get: |t| t.tags.bpm.as_deref(),
-        set: |t, v| t.tags.bpm = Some(v),
+        get: |t| t.fields.bpm.as_deref(),
+        set: |t, v| t.fields.bpm = Some(v),
     },
 ];
 
@@ -130,51 +130,51 @@ mod tests {
     #[test]
     fn fail_leading_space_in_artist() {
         let mut track = make_track();
-        track.tags.artist = Some(" Artist".to_string());
+        track.fields.artist = Some(" Artist".to_string());
         assert_eq!(MetaTextTrimmedRule.check(&track).violations().len(), 1);
     }
 
     #[test]
     fn fail_trailing_space_in_title() {
         let mut track = make_track();
-        track.tags.title = Some("Title ".to_string());
+        track.fields.title = Some("Title ".to_string());
         assert_eq!(MetaTextTrimmedRule.check(&track).violations().len(), 1);
     }
 
     #[test]
     fn one_violation_per_affected_field() {
         let mut track = make_track();
-        track.tags.artist = Some(" Artist ".to_string());
-        track.tags.bpm = Some(" 128.5".to_string());
+        track.fields.artist = Some(" Artist ".to_string());
+        track.fields.bpm = Some(" 128.5".to_string());
         assert_eq!(MetaTextTrimmedRule.check(&track).violations().len(), 2);
     }
 
     #[test]
     fn fix_targets_only_violated_field() {
         let mut track = make_track();
-        track.tags.artist = Some(" Artist".to_string());
-        let original_title = track.tags.title.clone();
+        track.fields.artist = Some(" Artist".to_string());
+        let original_title = track.fields.title.clone();
         let result = MetaTextTrimmedRule.check(&track);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
             .apply(&mut track);
-        assert_eq!(track.tags.artist.as_deref(), Some("Artist"));
-        assert_eq!(track.tags.title, original_title);
+        assert_eq!(track.fields.artist.as_deref(), Some("Artist"));
+        assert_eq!(track.fields.title, original_title);
     }
 
     #[test]
     fn fix_trims_both_sides() {
         let mut track = make_track();
-        track.tags.bpm = Some("  128.5  ".to_string());
+        track.fields.bpm = Some("  128.5  ".to_string());
         let result = MetaTextTrimmedRule.check(&track);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
             .apply(&mut track);
-        assert_eq!(track.tags.bpm.as_deref(), Some("128.5"));
+        assert_eq!(track.fields.bpm.as_deref(), Some("128.5"));
     }
 
     #[test]
@@ -183,7 +183,7 @@ mod tests {
         // an empty string. Separate rules (meta.required-fields-present)
         // are responsible for catching empty values.
         let mut track = make_track();
-        track.tags.album = Some("   ".to_string());
+        track.fields.album = Some("   ".to_string());
         let result = MetaTextTrimmedRule.check(&track);
         assert_eq!(result.violations().len(), 1);
         result.violations()[0]
@@ -191,13 +191,13 @@ mod tests {
             .as_ref()
             .unwrap()
             .apply(&mut track);
-        assert_eq!(track.tags.album.as_deref(), Some(""));
+        assert_eq!(track.fields.album.as_deref(), Some(""));
     }
 
     #[test]
     fn empty_string_is_not_a_violation() {
         let mut track = make_track();
-        track.tags.album = Some(String::new());
+        track.fields.album = Some(String::new());
         assert!(MetaTextTrimmedRule.check(&track).is_passed());
     }
 }

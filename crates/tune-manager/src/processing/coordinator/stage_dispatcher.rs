@@ -96,8 +96,8 @@ fn dispatch_ai_batch(
                 .as_ref()
                 .and_then(state::get_last_revision)
                 .map(|revision| Track {
-                    metadata: track.file_path.clone().into(),
-                    tags: revision.tags,
+                    file: track.file_path.clone().into(),
+                    fields: revision.fields,
                 })
         })
         .collect();

@@ -5,25 +5,25 @@ use id3::{Tag, TagLike, frame};
 use serde::{Deserialize, Serialize};
 
 use super::stages::ProcessingStage;
-use crate::track::TrackTags;
+use crate::track::TrackFields;
 
 const GEOB_STAGE_FILENAME: &str = "tune-manager-processing-state.json";
 const GEOB_REVISIONS_FILENAME: &str = "tune-manager-track-revisions.json";
 
-/// A TrackRevision represents a historic state of track tags
+/// A TrackRevision represents a historic state of track fields
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TrackRevision {
     /// Timestamp of the track revision
     pub ts: DateTime<Utc>,
-    pub tags: TrackTags,
+    pub fields: TrackFields,
 }
 
 impl TrackRevision {
     /// Creates a new TrackRevision with the current timestamp
-    pub fn new(tags: TrackTags) -> Self {
+    pub fn new(fields: TrackFields) -> Self {
         Self {
             ts: Utc::now(),
-            tags,
+            fields,
         }
     }
 }
@@ -127,7 +127,7 @@ pub fn append_track_revision(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::track::TrackTags;
+    use crate::track::TrackFields;
     use id3::Tag;
 
     #[test]
@@ -174,43 +174,43 @@ mod tests {
     fn test_append_track_revision() {
         let mut tag = Tag::new();
 
-        let tags = TrackTags {
+        let fields = TrackFields {
             artist: Some("Test Artist".to_string()),
             title: Some("Test Title".to_string()),
             ..Default::default()
         };
 
-        let revision = TrackRevision::new(tags.clone());
+        let revision = TrackRevision::new(fields.clone());
 
         // Append first revision
         append_track_revision(&mut tag, revision).unwrap();
 
         let revisions = track_revisions(&tag);
         assert_eq!(revisions.len(), 1);
-        assert_eq!(revisions[0].tags.artist, Some("Test Artist".to_string()));
-        assert_eq!(revisions[0].tags.title, Some("Test Title".to_string()));
+        assert_eq!(revisions[0].fields.artist, Some("Test Artist".to_string()));
+        assert_eq!(revisions[0].fields.title, Some("Test Title".to_string()));
     }
 
     #[test]
     fn test_append_multiple_track_revisions() {
         let mut tag = Tag::new();
 
-        let tags1 = TrackTags {
+        let fields1 = TrackFields {
             artist: Some("Artist 1".to_string()),
             title: Some("Title 1".to_string()),
             album: None,
             ..Default::default()
         };
 
-        let tags2 = TrackTags {
+        let fields2 = TrackFields {
             artist: Some("Artist 2".to_string()),
             title: Some("Title 2".to_string()),
             album: Some("Album 2".to_string()),
             ..Default::default()
         };
 
-        let revision1 = TrackRevision::new(tags1);
-        let revision2 = TrackRevision::new(tags2);
+        let revision1 = TrackRevision::new(fields1);
+        let revision2 = TrackRevision::new(fields2);
 
         // Append revisions
         append_track_revision(&mut tag, revision1).unwrap();
@@ -220,14 +220,14 @@ mod tests {
         assert_eq!(revisions.len(), 2);
 
         // First revision
-        assert_eq!(revisions[0].tags.artist, Some("Artist 1".to_string()));
-        assert_eq!(revisions[0].tags.title, Some("Title 1".to_string()));
-        assert_eq!(revisions[0].tags.album, None);
+        assert_eq!(revisions[0].fields.artist, Some("Artist 1".to_string()));
+        assert_eq!(revisions[0].fields.title, Some("Title 1".to_string()));
+        assert_eq!(revisions[0].fields.album, None);
 
         // Second revision
-        assert_eq!(revisions[1].tags.artist, Some("Artist 2".to_string()));
-        assert_eq!(revisions[1].tags.title, Some("Title 2".to_string()));
-        assert_eq!(revisions[1].tags.album, Some("Album 2".to_string()));
+        assert_eq!(revisions[1].fields.artist, Some("Artist 2".to_string()));
+        assert_eq!(revisions[1].fields.title, Some("Title 2".to_string()));
+        assert_eq!(revisions[1].fields.album, Some("Album 2".to_string()));
 
         // Check timestamps are ordered (second should be after first)
         assert!(revisions[1].ts >= revisions[0].ts);

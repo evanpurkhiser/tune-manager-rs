@@ -37,7 +37,7 @@ impl Rule for TitleNoOriginalMixRule {
     }
 
     fn check(&self, track: &Track) -> LintResult {
-        let Some(title) = track.tags.title.as_deref() else {
+        let Some(title) = track.fields.title.as_deref() else {
             return LintResult::Passed;
         };
         if !ORIGINAL_MIX_RE.is_match(title) {
@@ -45,8 +45,8 @@ impl Rule for TitleNoOriginalMixRule {
         }
         self.error("Title should not include (Original Mix)")
             .with_fix(|track| {
-                if let Some(title) = track.tags.title.as_deref() {
-                    track.tags.title = Some(strip_original_mix(title));
+                if let Some(title) = track.fields.title.as_deref() {
+                    track.fields.title = Some(strip_original_mix(title));
                 }
             })
             .into()
@@ -70,20 +70,20 @@ mod tests {
     #[test]
     fn fail_case() {
         let mut track = make_track();
-        track.tags.title = Some("Song (Original Mix)".to_string());
+        track.fields.title = Some("Song (Original Mix)".to_string());
         assert_eq!(TitleNoOriginalMixRule.check(&track).violations().len(), 1);
     }
 
     fn fixed_title(input: &str) -> String {
         let mut track = make_track();
-        track.tags.title = Some(input.to_string());
+        track.fields.title = Some(input.to_string());
         let result = TitleNoOriginalMixRule.check(&track);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
             .apply(&mut track);
-        track.tags.title.unwrap()
+        track.fields.title.unwrap()
     }
 
     #[test]

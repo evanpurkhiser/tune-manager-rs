@@ -13,7 +13,7 @@ use crate::{
         state::TrackRevision,
     },
     services::{convert, media_hash},
-    track::TrackTags,
+    track::TrackFields,
 };
 
 const MEDIA_HASH_OWNER: &str = "tune-manager-rs";
@@ -173,6 +173,6 @@ pub fn new_prepare_media_processor() -> PrepareMediaProcessor {
 
 impl ProducesRevision for PrepareMediaResult {
     fn produce_revision(&self, _last_revision: Option<&TrackRevision>) -> Option<TrackRevision> {
-        Some(TrackRevision::new(TrackTags::from(&self.tag)))
+        Some(TrackRevision::new(TrackFields::from(&self.tag)))
     }
 }

@@ -46,7 +46,7 @@ impl Rule for BpmNumericRule {
     }
 
     fn check(&self, track: &Track) -> LintResult {
-        let Some(bpm) = track.tags.bpm.as_deref() else {
+        let Some(bpm) = track.fields.bpm.as_deref() else {
             return LintResult::Passed;
         };
         let trimmed = bpm.trim();
@@ -79,17 +79,17 @@ impl Rule for BpmNumericRule {
 }
 
 fn fix_round_to_two_decimals(track: &mut Track) {
-    let Some(bpm) = track.tags.bpm.as_deref() else {
+    let Some(bpm) = track.fields.bpm.as_deref() else {
         return;
     };
     let Ok(n) = bpm.trim().parse::<f64>() else {
         return;
     };
-    track.tags.bpm = Some(format!("{:.2}", n));
+    track.fields.bpm = Some(format!("{:.2}", n));
 }
 
 fn fix_strip_trailing_decimal_zero(track: &mut Track) {
-    let Some(bpm) = track.tags.bpm.as_deref() else {
+    let Some(bpm) = track.fields.bpm.as_deref() else {
         return;
     };
     let Some((int, dec)) = bpm.trim().split_once('.') else {
@@ -101,7 +101,7 @@ fn fix_strip_trailing_decimal_zero(track: &mut Track) {
     } else {
         format!("{int}.{stripped}")
     };
-    track.tags.bpm = Some(result);
+    track.fields.bpm = Some(result);
 }
 
 #[cfg(test)]
@@ -111,20 +111,20 @@ mod tests {
 
     fn check_with(bpm: &str) -> crate::linter::LintResult {
         let mut track = make_track();
-        track.tags.bpm = Some(bpm.to_string());
+        track.fields.bpm = Some(bpm.to_string());
         BpmNumericRule.check(&track)
     }
 
     fn fix_all(bpm: &str) -> String {
         let mut track = make_track();
-        track.tags.bpm = Some(bpm.to_string());
+        track.fields.bpm = Some(bpm.to_string());
         let result = BpmNumericRule.check(&track);
         for v in result.violations() {
             if let Some(fix) = &v.fix {
                 fix.apply(&mut track);
             }
         }
-        track.tags.bpm.unwrap()
+        track.fields.bpm.unwrap()
     }
 
     #[test]

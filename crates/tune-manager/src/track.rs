@@ -10,13 +10,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::{fields::CountField, tags::Id3TagId};
 
-// track from metadata and tags using sqlx flatten
+// track from metadata and fields using sqlx flatten
 #[derive(Debug, sqlx::FromRow)]
 pub struct Track {
     #[sqlx(flatten)]
-    pub metadata: TrackMetadaata,
+    pub file: TrackFile,
     #[sqlx(flatten)]
-    pub tags: TrackTags,
+    pub fields: TrackFields,
 }
 
 /// A file on disk paired with its parsed ID3 tag.
@@ -36,19 +36,19 @@ impl TaggedFile {
 impl From<TaggedFile> for Track {
     fn from(TaggedFile { path, tag }: TaggedFile) -> Self {
         Self {
-            metadata: path.into(),
-            tags: TrackTags::from(&tag),
+            file: path.into(),
+            fields: TrackFields::from(&tag),
         }
     }
 }
 
 #[derive(Debug, sqlx::FromRow)]
-pub struct TrackMetadaata {
+pub struct TrackFile {
     pub file_path: PathBuf,
     pub mtime: u64,
 }
 
-impl From<PathBuf> for TrackMetadaata {
+impl From<PathBuf> for TrackFile {
     fn from(path: PathBuf) -> Self {
         Self {
             file_path: path.to_owned(),
@@ -64,7 +64,7 @@ impl From<PathBuf> for TrackMetadaata {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, sqlx::FromRow)]
-pub struct TrackTags {
+pub struct TrackFields {
     pub media_hash: Option<String>,
     pub artist: Option<String>,
     pub title: Option<String>,
@@ -80,7 +80,7 @@ pub struct TrackTags {
     pub track: Option<CountField>,
 }
 
-impl From<&Tag> for TrackTags {
+impl From<&Tag> for TrackFields {
     fn from(tag: &Tag) -> Self {
         type T = Id3TagId;
         Self {
@@ -113,7 +113,7 @@ static PATH_REPLACEMENTS: LazyLock<Vec<(Regex, &str)>> = LazyLock::new(|| {
 impl Track {
     /// Construct's the canonical path that the track should be located at derived from it's tags.
     pub fn cononical_path(&self) -> PathBuf {
-        let tags = &self.tags;
+        let fields = &self.fields;
         let mut path_parts = vec![];
 
         // Construct track directory names
@@ -127,23 +127,24 @@ impl Track {
 
         // First directory is the publisher
         path_parts.push(
-            tags.publisher
+            fields
+                .publisher
                 .as_deref()
                 .unwrap_or("[+no-label]")
                 .to_string(),
         );
 
         // Second directory is the album name and catalog_id
-        path_parts.push(match &tags.album {
+        path_parts.push(match &fields.album {
             Some(album) => {
-                let catalog_id = tags.catalog_id.as_deref().unwrap_or("--");
+                let catalog_id = fields.catalog_id.as_deref().unwrap_or("--");
                 format!("[{}] {}", catalog_id, album)
             }
             None => "[+singles]".to_string(),
         });
 
         //If the album has multiple discs include them as a directory
-        if let Some(CountField::Valid(count)) = tags.disc.as_ref()
+        if let Some(CountField::Valid(count)) = fields.disc.as_ref()
             && count.total > 1
         {
             path_parts.push(format!("Disc {}", count.number));
@@ -160,27 +161,27 @@ impl Track {
         let mut file_parts = vec![];
 
         // If part of an album or EP include the track number
-        if tags.album.is_some()
-            && let Some(CountField::Valid(count)) = tags.track.as_ref()
+        if fields.album.is_some()
+            && let Some(CountField::Valid(count)) = fields.track.as_ref()
         {
             file_parts.push(format!("{:02}.", count.number));
         }
 
         // If this track is a single and has a catalog_id number include it
-        if tags.album.is_none()
-            && let Some(catalog_id) = tags.catalog_id.as_deref()
+        if fields.album.is_none()
+            && let Some(catalog_id) = fields.catalog_id.as_deref()
         {
             file_parts.push(format!("[{}]", catalog_id))
         }
 
         // Include key of the track if available
-        file_parts.push(format!("[{}]", tags.key.as_deref().unwrap_or("--")));
+        file_parts.push(format!("[{}]", fields.key.as_deref().unwrap_or("--")));
 
         // Finally artist and title of the track
         file_parts.push(format!(
             "{} - {}",
-            tags.artist.as_deref().unwrap_or("<unknown artist>"),
-            tags.title.as_deref().unwrap_or("<unknown title>")
+            fields.artist.as_deref().unwrap_or("<unknown artist>"),
+            fields.title.as_deref().unwrap_or("<unknown title>")
         ));
 
         let mut filename = file_parts.join(" ").trim().to_string();
@@ -200,7 +201,7 @@ impl Track {
         }
 
         path.set_extension(
-            self.metadata
+            self.file
                 .file_path
                 .extension()
                 .map(|s| s.to_ascii_lowercase())
@@ -217,16 +218,16 @@ impl Track {
 mod tests {
     use super::*;
 
-    impl From<TrackTags> for Track {
-        fn from(tags: TrackTags) -> Self {
+    impl From<TrackFields> for Track {
+        fn from(fields: TrackFields) -> Self {
             Self {
-                metadata: Default::default(),
-                tags,
+                file: Default::default(),
+                fields,
             }
         }
     }
 
-    impl Default for TrackMetadaata {
+    impl Default for TrackFile {
         fn default() -> Self {
             Self {
                 file_path: PathBuf::from(
@@ -237,7 +238,7 @@ mod tests {
         }
     }
 
-    impl Default for TrackTags {
+    impl Default for TrackFields {
         fn default() -> Self {
             Self {
                 media_hash: Some("098f6bcd4621d373cade4e832627b4f6".to_string()),
@@ -259,13 +260,13 @@ mod tests {
 
     #[test]
     fn test_cononical_path() {
-        let track: Track = TrackTags::default().into();
+        let track: Track = TrackFields::default().into();
         assert_eq!(
             track.cononical_path().to_str().unwrap(),
             "Publisher/[RLS] Album/Disc 2/01. [10A] Artist - Title.mp3"
         );
 
-        let no_publisher: Track = TrackTags {
+        let no_publisher: Track = TrackFields {
             publisher: None,
             ..Default::default()
         }
@@ -275,7 +276,7 @@ mod tests {
             "[+no-label]/[RLS] Album/Disc 2/01. [10A] Artist - Title.mp3"
         );
 
-        let no_catalog_id: Track = TrackTags {
+        let no_catalog_id: Track = TrackFields {
             catalog_id: None,
             ..Default::default()
         }
@@ -285,7 +286,7 @@ mod tests {
             "Publisher/[--] Album/Disc 2/01. [10A] Artist - Title.mp3"
         );
 
-        let single: Track = TrackTags {
+        let single: Track = TrackFields {
             album: None,
             disc: None,
             track: None,
@@ -297,7 +298,7 @@ mod tests {
             "Publisher/[+singles]/[RLS] [10A] Artist - Title.mp3"
         );
 
-        let single_no_catalog_id: Track = TrackTags {
+        let single_no_catalog_id: Track = TrackFields {
             album: None,
             disc: None,
             track: None,
@@ -310,7 +311,7 @@ mod tests {
             "Publisher/[+singles]/[10A] Artist - Title.mp3"
         );
 
-        let special_characters: Track = TrackTags {
+        let special_characters: Track = TrackFields {
             title: Some(r#"What? P* | Real: <new/track> "cool" "#.to_string()),
             ..Default::default()
         }

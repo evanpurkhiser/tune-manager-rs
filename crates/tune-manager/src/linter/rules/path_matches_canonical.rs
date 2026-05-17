@@ -28,7 +28,7 @@ impl Rule for PathMatchesCanonicalRule {
 
     fn check(&self, track: &Track) -> LintResult {
         let canonical = track.cononical_path();
-        let actual = &track.metadata.file_path;
+        let actual = &track.file.file_path;
 
         if actual.ends_with(&canonical) {
             return LintResult::Passed;
@@ -59,7 +59,7 @@ mod tests {
     #[test]
     fn fail_case() {
         let mut track = make_track();
-        track.metadata.file_path =
+        track.file.file_path =
             PathBuf::from("Publisher/[RLS] Album/Disc 2/99. [10A] Artist - Title.MP3");
         assert_eq!(PathMatchesCanonicalRule.check(&track).violations().len(), 1);
     }

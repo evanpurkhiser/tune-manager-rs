@@ -58,8 +58,8 @@ impl ProducesRevision for KeyfinderResult {
         let last_revision = last_revision?;
         let mut revision = last_revision.clone();
         if let Some(ref key) = self.detected_key {
-            revision.tags.key = Some(key.clone());
+            revision.fields.key = Some(key.clone());
         }
-        Some(TrackRevision::new(revision.tags))
+        Some(TrackRevision::new(revision.fields))
     }
 }

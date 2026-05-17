@@ -43,9 +43,9 @@ impl Rule for MetaRemixerTitleConsistencyRule {
     }
 
     fn check(&self, track: &Track) -> LintResult {
-        let title = track.tags.title.as_deref().unwrap_or_default();
+        let title = track.fields.title.as_deref().unwrap_or_default();
         let remixer = track
-            .tags
+            .fields
             .remixer
             .as_deref()
             .map(str::trim)
@@ -72,11 +72,11 @@ impl Rule for MetaRemixerTitleConsistencyRule {
 }
 
 fn extract_remixer_from_title(track: &mut Track) {
-    let Some(title) = track.tags.title.as_deref() else {
+    let Some(title) = track.fields.title.as_deref() else {
         return;
     };
     if let Some(caps) = REMIX_ARTIST_RE.captures(title) {
-        track.tags.remixer = Some(caps[1].trim().to_string());
+        track.fields.remixer = Some(caps[1].trim().to_string());
     }
 }
 
@@ -88,16 +88,16 @@ mod tests {
     #[test]
     fn ok_case() {
         let mut track = make_track();
-        track.tags.title = Some("Song (Remixer Remix)".to_string());
-        track.tags.remixer = Some("Remixer".to_string());
+        track.fields.title = Some("Song (Remixer Remix)".to_string());
+        track.fields.remixer = Some("Remixer".to_string());
         assert!(MetaRemixerTitleConsistencyRule.check(&track).is_passed());
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
-        track.tags.title = Some("Song (Other Remix)".to_string());
-        track.tags.remixer = Some("Remixer".to_string());
+        track.fields.title = Some("Song (Other Remix)".to_string());
+        track.fields.remixer = Some("Remixer".to_string());
         assert_eq!(
             MetaRemixerTitleConsistencyRule
                 .check(&track)
@@ -110,8 +110,8 @@ mod tests {
     #[test]
     fn fail_inverse_case() {
         let mut track = make_track();
-        track.tags.title = Some("Song".to_string());
-        track.tags.remixer = Some("Remixer".to_string());
+        track.fields.title = Some("Song".to_string());
+        track.fields.remixer = Some("Remixer".to_string());
         assert_eq!(
             MetaRemixerTitleConsistencyRule
                 .check(&track)
@@ -124,16 +124,16 @@ mod tests {
     #[test]
     fn ignores_non_remix_mix_token() {
         let mut track = make_track();
-        track.tags.title = Some("Song (Extended Mix)".to_string());
-        track.tags.remixer = None;
+        track.fields.title = Some("Song (Extended Mix)".to_string());
+        track.fields.remixer = None;
         assert!(MetaRemixerTitleConsistencyRule.check(&track).is_passed());
     }
 
     #[test]
     fn fail_case_difference() {
         let mut track = make_track();
-        track.tags.title = Some("Song (REMIXER Remix)".to_string());
-        track.tags.remixer = Some("Remixer".to_string());
+        track.fields.title = Some("Song (REMIXER Remix)".to_string());
+        track.fields.remixer = Some("Remixer".to_string());
         assert_eq!(
             MetaRemixerTitleConsistencyRule
                 .check(&track)
@@ -146,8 +146,8 @@ mod tests {
     #[test]
     fn fix_extracts_artist_when_remixer_empty() {
         let mut track = make_track();
-        track.tags.title = Some("Song (Remixer Remix)".to_string());
-        track.tags.remixer = None;
+        track.fields.title = Some("Song (Remixer Remix)".to_string());
+        track.fields.remixer = None;
         let result = MetaRemixerTitleConsistencyRule.check(&track);
         assert_eq!(result.violations().len(), 1);
         result.violations()[0]
@@ -155,14 +155,14 @@ mod tests {
             .as_ref()
             .unwrap()
             .apply(&mut track);
-        assert_eq!(track.tags.remixer.as_deref(), Some("Remixer"));
+        assert_eq!(track.fields.remixer.as_deref(), Some("Remixer"));
     }
 
     #[test]
     fn fix_overwrites_mismatched_remixer() {
         let mut track = make_track();
-        track.tags.title = Some("Song (Other Remix)".to_string());
-        track.tags.remixer = Some("Remixer".to_string());
+        track.fields.title = Some("Song (Other Remix)".to_string());
+        track.fields.remixer = Some("Remixer".to_string());
         let result = MetaRemixerTitleConsistencyRule.check(&track);
         assert_eq!(result.violations().len(), 1);
         result.violations()[0]
@@ -170,7 +170,7 @@ mod tests {
             .as_ref()
             .unwrap()
             .apply(&mut track);
-        assert_eq!(track.tags.remixer.as_deref(), Some("Other"));
+        assert_eq!(track.fields.remixer.as_deref(), Some("Other"));
     }
 
     #[test]
@@ -178,8 +178,8 @@ mod tests {
         // When remixer is set but title has no remix note we don't autofix:
         // adding a remix note into the title is the ambiguous direction.
         let mut track = make_track();
-        track.tags.title = Some("Song".to_string());
-        track.tags.remixer = Some("Remixer".to_string());
+        track.fields.title = Some("Song".to_string());
+        track.fields.remixer = Some("Remixer".to_string());
         let result = MetaRemixerTitleConsistencyRule.check(&track);
         assert_eq!(result.violations().len(), 1);
         assert!(result.violations()[0].fix.is_none());
@@ -188,14 +188,14 @@ mod tests {
     #[test]
     fn fix_extracts_multi_word_artist() {
         let mut track = make_track();
-        track.tags.title = Some("Song (Some Artist Remix)".to_string());
-        track.tags.remixer = None;
+        track.fields.title = Some("Song (Some Artist Remix)".to_string());
+        track.fields.remixer = None;
         let result = MetaRemixerTitleConsistencyRule.check(&track);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
             .apply(&mut track);
-        assert_eq!(track.tags.remixer.as_deref(), Some("Some Artist"));
+        assert_eq!(track.fields.remixer.as_deref(), Some("Some Artist"));
     }
 }

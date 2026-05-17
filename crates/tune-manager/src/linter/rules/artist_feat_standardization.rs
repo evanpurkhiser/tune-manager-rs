@@ -37,7 +37,7 @@ impl Rule for ArtistFeatStandardizationRule {
     }
 
     fn check(&self, track: &Track) -> LintResult {
-        let Some(artist) = track.tags.artist.as_deref() else {
+        let Some(artist) = track.fields.artist.as_deref() else {
             return LintResult::Passed;
         };
         let Some(cap) = FEAT_VARIANT_RE.captures(artist) else {
@@ -52,8 +52,8 @@ impl Rule for ArtistFeatStandardizationRule {
         }
         self.error("Featuring token should be canonical Ft.")
             .with_fix(|track| {
-                if let Some(artist) = track.tags.artist.as_deref() {
-                    track.tags.artist = Some(standardize_feat(artist));
+                if let Some(artist) = track.fields.artist.as_deref() {
+                    track.fields.artist = Some(standardize_feat(artist));
                 }
             })
             .into()
@@ -72,14 +72,14 @@ mod tests {
     #[test]
     fn ok_case() {
         let mut track = make_track();
-        track.tags.artist = Some("A Ft. B".to_string());
+        track.fields.artist = Some("A Ft. B".to_string());
         assert!(ArtistFeatStandardizationRule.check(&track).is_passed());
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
-        track.tags.artist = Some("A feat. B".to_string());
+        track.fields.artist = Some("A feat. B".to_string());
         assert_eq!(
             ArtistFeatStandardizationRule
                 .check(&track)
@@ -91,14 +91,14 @@ mod tests {
 
     fn fixed_artist(input: &str) -> String {
         let mut track = make_track();
-        track.tags.artist = Some(input.to_string());
+        track.fields.artist = Some(input.to_string());
         let result = ArtistFeatStandardizationRule.check(&track);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
             .apply(&mut track);
-        track.tags.artist.unwrap()
+        track.fields.artist.unwrap()
     }
 
     #[test]

@@ -32,7 +32,7 @@ impl Rule for YearFormatRule {
     }
 
     fn check(&self, track: &Track) -> LintResult {
-        let Some(year) = track.tags.year.as_deref() else {
+        let Some(year) = track.fields.year.as_deref() else {
             return LintResult::Passed;
         };
 
@@ -56,14 +56,14 @@ mod tests {
     #[test]
     fn fail_case() {
         let mut track = make_track();
-        track.tags.year = Some("15".to_string());
+        track.fields.year = Some("15".to_string());
         assert_eq!(YearFormatRule.check(&track).violations().len(), 1);
     }
 
     #[test]
     fn fail_case_with_whitespace() {
         let mut track = make_track();
-        track.tags.year = Some(" 2015 ".to_string());
+        track.fields.year = Some(" 2015 ".to_string());
         assert_eq!(YearFormatRule.check(&track).violations().len(), 1);
     }
 }

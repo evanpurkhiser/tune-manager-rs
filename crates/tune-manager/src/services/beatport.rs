@@ -5,7 +5,7 @@ use regex::Regex;
 use serde_json::{Value, json};
 use thiserror::Error;
 
-use crate::{fields::Count, fields::CountField, track::TrackTags};
+use crate::{fields::Count, fields::CountField, track::TrackFields};
 
 static TRACK_PATH: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^/track/[^/]+/(?<track_id>\d+)$").unwrap());
@@ -62,28 +62,28 @@ pub struct BeatportTrackInfo {
 }
 
 impl BeatportTrackInfo {
-    /// Updates the provided TrackTags with information from Beatport
-    pub fn update_track_tags(&self, tags: &mut TrackTags) {
+    /// Updates the provided [`TrackInfo`] with information from Beatport
+    pub fn update_track_fields(&self, fields: &mut TrackFields) {
         if let Some(ref catalog_number) = self.catalog_number {
-            tags.catalog_id = Some(catalog_number.clone());
+            fields.catalog_id = Some(catalog_number.clone());
         }
 
         if let Some(ref label) = self.label {
-            tags.publisher = Some(label.clone());
+            fields.publisher = Some(label.clone());
         }
 
         if let Some(ref genre) = self.genre {
-            tags.genre = Some(genre.clone());
+            fields.genre = Some(genre.clone());
         }
 
         // Update track number if we have both track_number and track_total
         if let (Some(track_number), Some(track_total)) = (self.track_number, self.track_total) {
             if track_number == 1 && track_total == 1 {
                 // Single track release - clear track and disc fields
-                tags.track = None;
-                tags.disc = None;
+                fields.track = None;
+                fields.disc = None;
             } else {
-                tags.track = Some(CountField::Valid(Count {
+                fields.track = Some(CountField::Valid(Count {
                     number: track_number as u8,
                     total: track_total as u8,
                 }));
@@ -441,13 +441,13 @@ mod tests {
     }
 
     #[test]
-    fn test_update_track_tags() {
+    fn test_update_track_fields() {
         use crate::{
             fields::{Count, CountField},
-            track::TrackTags,
+            track::TrackFields,
         };
 
-        let mut tags = TrackTags::default();
+        let mut fields = TrackFields::default();
 
         // Test with multi-track release
         let info = BeatportTrackInfo {
@@ -458,13 +458,13 @@ mod tests {
             genre: Some("Test Genre".to_string()),
         };
 
-        info.update_track_tags(&mut tags);
+        info.update_track_fields(&mut fields);
 
-        assert_eq!(tags.catalog_id, Some("TEST123".to_string()));
-        assert_eq!(tags.publisher, Some("Test Label".to_string()));
-        assert_eq!(tags.genre, Some("Test Genre".to_string()));
+        assert_eq!(fields.catalog_id, Some("TEST123".to_string()));
+        assert_eq!(fields.publisher, Some("Test Label".to_string()));
+        assert_eq!(fields.genre, Some("Test Genre".to_string()));
         assert_eq!(
-            tags.track,
+            fields.track,
             Some(CountField::Valid(Count {
                 number: 2u8,
                 total: 5u8
@@ -480,14 +480,14 @@ mod tests {
             genre: Some("Single Genre".to_string()),
         };
 
-        let mut single_tags = TrackTags::default();
-        single_info.update_track_tags(&mut single_tags);
+        let mut single_fields = TrackFields::default();
+        single_info.update_track_fields(&mut single_fields);
 
-        assert_eq!(single_tags.catalog_id, Some("SINGLE456".to_string()));
-        assert_eq!(single_tags.publisher, Some("Single Label".to_string()));
-        assert_eq!(single_tags.genre, Some("Single Genre".to_string()));
-        assert_eq!(single_tags.track, None);
-        assert_eq!(single_tags.disc, None);
+        assert_eq!(single_fields.catalog_id, Some("SINGLE456".to_string()));
+        assert_eq!(single_fields.publisher, Some("Single Label".to_string()));
+        assert_eq!(single_fields.genre, Some("Single Genre".to_string()));
+        assert_eq!(single_fields.track, None);
+        assert_eq!(single_fields.disc, None);
     }
 
     #[tokio::test]

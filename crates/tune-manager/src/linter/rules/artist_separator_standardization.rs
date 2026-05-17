@@ -42,7 +42,7 @@ impl Rule for ArtistSeparatorStandardizationRule {
     }
 
     fn check(&self, track: &Track) -> LintResult {
-        let Some(artist) = track.tags.artist.as_deref() else {
+        let Some(artist) = track.fields.artist.as_deref() else {
             return LintResult::Passed;
         };
         if !NON_CANON_RE.is_match(artist) {
@@ -50,8 +50,8 @@ impl Rule for ArtistSeparatorStandardizationRule {
         }
         self.error("Artist connectors are not canonical")
             .with_fix(|track| {
-                if let Some(artist) = track.tags.artist.as_deref() {
-                    track.tags.artist = Some(standardize_separators(artist));
+                if let Some(artist) = track.fields.artist.as_deref() {
+                    track.fields.artist = Some(standardize_separators(artist));
                 }
             })
             .into()
@@ -78,14 +78,14 @@ mod tests {
     #[test]
     fn ok_case() {
         let mut track = make_track();
-        track.tags.artist = Some("A & B".to_string());
+        track.fields.artist = Some("A & B".to_string());
         assert!(ArtistSeparatorStandardizationRule.check(&track).is_passed());
     }
 
     #[test]
     fn fail_case() {
         let mut track = make_track();
-        track.tags.artist = Some("A and B".to_string());
+        track.fields.artist = Some("A and B".to_string());
         assert_eq!(
             ArtistSeparatorStandardizationRule
                 .check(&track)
@@ -98,7 +98,7 @@ mod tests {
     #[test]
     fn fail_versus() {
         let mut track = make_track();
-        track.tags.artist = Some("A versus B".to_string());
+        track.fields.artist = Some("A versus B".to_string());
         assert_eq!(
             ArtistSeparatorStandardizationRule
                 .check(&track)
@@ -110,14 +110,14 @@ mod tests {
 
     fn fixed_artist(input: &str) -> String {
         let mut track = make_track();
-        track.tags.artist = Some(input.to_string());
+        track.fields.artist = Some(input.to_string());
         let result = ArtistSeparatorStandardizationRule.check(&track);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
             .apply(&mut track);
-        track.tags.artist.unwrap()
+        track.fields.artist.unwrap()
     }
 
     #[test]

@@ -68,7 +68,7 @@ pub fn handle_stage_dispatch(
             let file_paths: Vec<_> = input
                 .tracks
                 .iter()
-                .map(|track| track.metadata.file_path.clone())
+                .map(|track| track.file.file_path.clone())
                 .collect();
 
             tokio::spawn(async move {

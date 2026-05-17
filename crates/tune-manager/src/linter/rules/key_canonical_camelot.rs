@@ -44,7 +44,7 @@ impl Rule for KeyCanonicalCamelotRule {
     }
 
     fn check(&self, track: &Track) -> LintResult {
-        let Some(key) = track.tags.key.as_deref() else {
+        let Some(key) = track.fields.key.as_deref() else {
             return LintResult::Passed;
         };
         let key = key.trim();
@@ -84,7 +84,7 @@ impl Rule for KeyCanonicalCamelotRule {
 }
 
 fn fix_to_canonical_camelot(track: &mut Track) {
-    let Some(key) = track.tags.key.as_deref() else {
+    let Some(key) = track.fields.key.as_deref() else {
         return;
     };
     let trimmed = key.trim();
@@ -92,7 +92,7 @@ fn fix_to_canonical_camelot(track: &mut Track) {
         .or_else(|| parse_openkey(trimmed))
         .or_else(|| parse_musical(trimmed));
     if let Some(c) = canonical {
-        track.tags.key = Some(c);
+        track.fields.key = Some(c);
     }
 }
 
@@ -177,20 +177,20 @@ mod tests {
 
     fn check_with(key: &str) -> crate::linter::LintResult {
         let mut track = make_track();
-        track.tags.key = Some(key.to_string());
+        track.fields.key = Some(key.to_string());
         KeyCanonicalCamelotRule.check(&track)
     }
 
     fn fixed(key: &str) -> String {
         let mut track = make_track();
-        track.tags.key = Some(key.to_string());
+        track.fields.key = Some(key.to_string());
         let result = KeyCanonicalCamelotRule.check(&track);
         result.violations()[0]
             .fix
             .as_ref()
             .unwrap()
             .apply(&mut track);
-        track.tags.key.unwrap()
+        track.fields.key.unwrap()
     }
 
     #[test]

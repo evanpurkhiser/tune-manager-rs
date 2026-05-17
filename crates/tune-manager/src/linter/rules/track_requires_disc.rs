@@ -26,7 +26,7 @@ impl Rule for TrackRequiresDiscRule {
     }
 
     fn check(&self, track: &Track) -> LintResult {
-        if track.tags.track.is_some() && track.tags.disc.is_none() {
+        if track.fields.track.is_some() && track.fields.disc.is_none() {
             return self.error("Track is present but disc is missing").into();
         }
         LintResult::Passed
@@ -46,7 +46,7 @@ mod tests {
     #[test]
     fn fail_case() {
         let mut track = make_track();
-        track.tags.disc = None;
+        track.fields.disc = None;
         assert_eq!(TrackRequiresDiscRule.check(&track).violations().len(), 1);
     }
 }

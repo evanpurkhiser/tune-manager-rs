@@ -73,7 +73,7 @@ pub fn handle_track_status<F>(
             state::mark_stage_complete(tag, status.stage()).expect("stage added");
         }
 
-        // Handle successful completion - update track tags with new revision
+        // Handle successful completion - update track fields with new revision
         if let Some(ref revision) = revision {
             state::append_track_revision(tag, revision.clone()).expect("revision added");
         }
@@ -338,7 +338,7 @@ mod tests {
 
         // Verify revision was added to tag
         let revision = state::get_last_revision(track_tag).unwrap();
-        assert_eq!(revision.tags.title, Some("Test Track".to_string()));
+        assert_eq!(revision.fields.title, Some("Test Track".to_string()));
     }
 
     #[test]
@@ -524,12 +524,15 @@ mod tests {
         // Verify initial revision was created
         let track_tag = ctx.get_track_tag();
         let initial_revision = state::get_last_revision(track_tag).unwrap();
-        assert_eq!(initial_revision.tags.title, Some("Test Track".to_string()));
         assert_eq!(
-            initial_revision.tags.artist,
+            initial_revision.fields.title,
+            Some("Test Track".to_string())
+        );
+        assert_eq!(
+            initial_revision.fields.artist,
             Some("Test Artist".to_string())
         );
-        assert!(initial_revision.tags.key.is_none());
+        assert!(initial_revision.fields.key.is_none());
 
         // Now complete Keyfinder to chain a new revision
         let keyfinder_result = keyfinder::KeyfinderResult {
@@ -545,9 +548,12 @@ mod tests {
         let latest_revision = state::get_last_revision(track_tag).unwrap();
 
         // Should have all previous fields plus the new key
-        assert_eq!(latest_revision.tags.title, Some("Test Track".to_string()));
-        assert_eq!(latest_revision.tags.artist, Some("Test Artist".to_string()));
-        assert_eq!(latest_revision.tags.key, Some("Am".to_string()));
+        assert_eq!(latest_revision.fields.title, Some("Test Track".to_string()));
+        assert_eq!(
+            latest_revision.fields.artist,
+            Some("Test Artist".to_string())
+        );
+        assert_eq!(latest_revision.fields.key, Some("Am".to_string()));
     }
 
     #[test]
@@ -689,11 +695,11 @@ mod tests {
         // Verify revision was written to the in-memory tag
         let tag = ctx.get_track_tag();
         let latest = state::get_last_revision(tag).unwrap();
-        assert_eq!(latest.tags.key, Some("Am".to_string()));
+        assert_eq!(latest.fields.key, Some("Am".to_string()));
 
         // Now verify the tag was actually persisted to the file by reading it back
         let persisted_tag = Tag::read_from_path(&file_path).unwrap();
         let persisted_latest = state::get_last_revision(&persisted_tag).unwrap();
-        assert_eq!(persisted_latest.tags.key, Some("Am".to_string()));
+        assert_eq!(persisted_latest.fields.key, Some("Am".to_string()));
     }
 }

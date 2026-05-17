@@ -138,8 +138,8 @@ impl ProducesRevision for BeatportResult {
         let last_revision = last_revision?;
         let mut revision = last_revision.clone();
         if let Some(ref track_info) = self.track_info {
-            track_info.update_track_tags(&mut revision.tags);
+            track_info.update_track_fields(&mut revision.fields);
         }
-        Some(TrackRevision::new(revision.tags))
+        Some(TrackRevision::new(revision.fields))
     }
 }

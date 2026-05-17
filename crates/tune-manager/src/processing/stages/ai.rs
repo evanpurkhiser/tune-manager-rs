@@ -101,12 +101,12 @@ async fn process_ai_input(
 impl ProducesRevision for AiResult {
     fn produce_revision(&self, last_revision: Option<&TrackRevision>) -> Option<TrackRevision> {
         let last_revision = last_revision?;
-        let media_hash = last_revision.tags.media_hash.as_ref()?;
+        let media_hash = last_revision.fields.media_hash.as_ref()?;
         let track_response = self.responses.get(media_hash)?;
 
         let mut revision = last_revision.clone();
-        track_response.update_track_tags(&mut revision.tags);
+        track_response.update_track_fields(&mut revision.fields);
 
-        Some(TrackRevision::new(revision.tags))
+        Some(TrackRevision::new(revision.fields))
     }
 }

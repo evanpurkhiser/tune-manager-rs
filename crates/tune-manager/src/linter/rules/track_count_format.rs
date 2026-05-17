@@ -28,7 +28,7 @@ impl Rule for TrackCountFormatRule {
     }
 
     fn check(&self, track: &Track) -> LintResult {
-        match track.tags.track.as_ref() {
+        match track.fields.track.as_ref() {
             None => LintResult::Passed,
             Some(CountField::Invalid(_)) => self.error("Track number format is invalid").into(),
             Some(CountField::Valid(c)) if c.number == 0 || c.total == 0 || c.number > c.total => {
@@ -55,7 +55,7 @@ mod tests {
     #[test]
     fn fail_case() {
         let mut track = make_track();
-        track.tags.track = Some(CountField::Invalid("x".to_string()));
+        track.fields.track = Some(CountField::Invalid("x".to_string()));
         assert_eq!(TrackCountFormatRule.check(&track).violations().len(), 1);
     }
 }
