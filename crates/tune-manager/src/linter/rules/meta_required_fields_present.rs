@@ -7,16 +7,22 @@ use crate::{
 static METADATA: RuleMetadata = rule_metadata! {
     id: "meta.required-fields-present",
     description: r#"
-        Required metadata fields (artist, title) must be present and
-        non-empty.
+        Required metadata fields (artist, title, media_hash) must be present
+        and non-empty.
+
+        `media_hash` is written by tune-manager into the UFID frame during
+        ingest and acts as the track's stable identity. A missing value means
+        the track has not been ingested (or the frame was stripped) and must
+        be backfilled before the track can be reliably tracked.
 
         Valid:
-        - artist=Artist, title=Title
+        - artist=Artist, title=Title, media_hash=<hex>
 
         Invalid:
         - artist missing
         - title missing
-        - artist or title set to whitespace-only string
+        - media_hash missing
+        - any required field set to whitespace-only string
     "#,
 };
 
@@ -31,6 +37,7 @@ impl Rule for MetaRequiredFieldsPresentRule {
         let required = [
             ("artist", track.tags.artist.as_deref()),
             ("title", track.tags.title.as_deref()),
+            ("media_hash", track.tags.media_hash.as_deref()),
         ];
 
         required
@@ -83,16 +90,30 @@ mod tests {
     }
 
     #[test]
-    fn fail_missing_both() {
+    fn fail_missing_media_hash() {
         let mut track = make_track();
-        track.tags.artist = None;
-        track.tags.title = None;
+        track.tags.media_hash = None;
         assert_eq!(
             MetaRequiredFieldsPresentRule
                 .check(&track)
                 .violations()
                 .len(),
-            2
+            1
+        );
+    }
+
+    #[test]
+    fn fail_missing_all() {
+        let mut track = make_track();
+        track.tags.artist = None;
+        track.tags.title = None;
+        track.tags.media_hash = None;
+        assert_eq!(
+            MetaRequiredFieldsPresentRule
+                .check(&track)
+                .violations()
+                .len(),
+            3
         );
     }
 

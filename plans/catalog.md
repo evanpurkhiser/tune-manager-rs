@@ -56,27 +56,9 @@ These are the rules we should document first, then implement incrementally.
    - Track only: Yes.
    - File extension must be in supported set (`mp3`, `aiff`; conversion pipeline may ingest `wav/flac/m4a`).
 
-#### `file.readable_id3`
-   - Track only: No.
-   - File must have readable ID3 tags.
-
 #### `file.id3_version`
    - Track only: No.
    - Normalize/write tags as ID3v2.4.
-
-#### `ufid.media_hash_present`
-   - Track only: No.
-   - `UFID` media hash for `tune-manager-rs` must exist.
-
-#### `catalog.unique_media_hash`
-   - Track only: No.
-   - No duplicate rows for same media hash.
-
-#### `catalog.media_hash_present`
-   - Track only: No.
-   - `media_hash` must be present and non-empty on every catalog row.
-   - Severity: `error`.
-   - Autofix: no (requires tag re-read/backfill during sync).
 
 #### `catalog.path_in_root`
    - Track only: No.
@@ -96,9 +78,10 @@ normalization, and lowercase extension normalization.
 
 #### `meta.required-fields-present`
     - Track only: Yes.
-    - Required metadata fields must be present and non-empty (initially: `artist`, `title`).
+    - Required metadata fields must be present and non-empty: `artist`, `title`, `media_hash`.
+    - `media_hash` is written by tune-manager into the UFID frame during ingest and acts as the track's stable identity. Treating it as a required field on `TrackTags` lets one rule cover both user-authored metadata and the machine-written identity check — replaces the earlier separate `ufid.media_hash_present` / `catalog.media_hash_present` rules.
     - Severity: `error`.
-    - Autofix: no.
+    - Autofix: no (`media_hash` recovery requires tag re-read/backfill during sync).
 
 #### `meta.text-trimmed`
     - Track only: Yes.
