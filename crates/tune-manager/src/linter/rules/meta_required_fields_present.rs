@@ -1,5 +1,5 @@
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
 };
 
@@ -32,7 +32,7 @@ impl Rule for MetaRequiredFieldsPresentRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         let required = [
             ("artist", track.fields.artist.as_deref()),

@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
 };
 
@@ -40,13 +40,13 @@ impl Rule for ArtistSeparatorStandardizationRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         let Some(artist) = track.fields.artist.as_deref() else {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         };
         if !NON_CANON_RE.is_match(artist) {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         }
         self.error("Artist connectors are not canonical")
             .with_fix(|track| {

@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
 };
 
@@ -35,20 +35,20 @@ impl Rule for ArtistFeatStandardizationRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         let Some(artist) = track.fields.artist.as_deref() else {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         };
         let Some(cap) = FEAT_VARIANT_RE.captures(artist) else {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         };
         let token = cap
             .get(1)
             .map(|m| m.as_str().to_ascii_lowercase())
             .unwrap_or_default();
         if token == "ft." {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         }
         self.error("Featuring token should be canonical Ft.")
             .with_fix(|track| {

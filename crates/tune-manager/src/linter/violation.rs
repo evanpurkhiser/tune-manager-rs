@@ -12,9 +12,12 @@ pub enum RuleSeverity {
     Warn,
 }
 
+/// A single violation produced by a rule. The originating rule is tracked
+/// by [`RuleResult`](crate::linter::RuleResult), which wraps the
+/// [`CheckOutcome`](crate::linter::CheckOutcome) carrying these violations
+/// — so this struct intentionally does not carry `rule_id`.
 #[derive(Debug, Clone)]
 pub struct RuleViolation {
-    pub rule_id: &'static str,
     pub severity: RuleSeverity,
     pub message: String,
     /// Optional autofix that mutates a [`Track`] to resolve this violation.

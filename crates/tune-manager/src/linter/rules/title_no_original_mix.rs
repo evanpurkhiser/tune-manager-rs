@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
 };
 
@@ -35,13 +35,13 @@ impl Rule for TitleNoOriginalMixRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         let Some(title) = track.fields.title.as_deref() else {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         };
         if !ORIGINAL_MIX_RE.is_match(title) {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         }
         self.error("Title should not include (Original Mix)")
             .with_fix(|track| {

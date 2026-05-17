@@ -1,5 +1,5 @@
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
 };
 
@@ -24,12 +24,12 @@ impl Rule for DiscRequiresTrackRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         if track.fields.disc.is_some() && track.fields.track.is_none() {
             return self.error("Disc is present but track is missing").into();
         }
-        LintResult::Passed
+        CheckOutcome::Passed
     }
 }
 

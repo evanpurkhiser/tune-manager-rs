@@ -1,5 +1,5 @@
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
 };
 
@@ -25,7 +25,7 @@ impl Rule for MetaPublisherCatalogPairingRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         let publisher = track
             .fields
@@ -47,7 +47,7 @@ impl Rule for MetaPublisherCatalogPairingRule {
             (None, Some(_)) => self
                 .error("Catalog_id is present but publisher is missing")
                 .into(),
-            _ => LintResult::Passed,
+            _ => CheckOutcome::Passed,
         }
     }
 }

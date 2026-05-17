@@ -10,8 +10,8 @@ use crate::track::{TaggedFile, Track, TrackFields};
 /// `TrackFields`.
 ///
 /// Rules that need the raw tag should early-return
-/// [`LintResult::Skipped`](crate::linter::LintResult::Skipped) when `id3`
-/// is `None`.
+/// [`CheckOutcome::Skipped`](crate::linter::CheckOutcome::Skipped) when
+/// `id3` is `None`.
 pub struct LintTarget {
     pub track: Track,
     pub id3: Option<Tag>,

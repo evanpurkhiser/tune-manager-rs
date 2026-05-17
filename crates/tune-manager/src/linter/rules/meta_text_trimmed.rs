@@ -1,5 +1,5 @@
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -95,7 +95,7 @@ impl Rule for MetaTextTrimmedRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         FIELDS
             .iter()

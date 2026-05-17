@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -43,15 +43,15 @@ impl Rule for KeyCanonicalCamelotRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         let Some(key) = track.fields.key.as_deref() else {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         };
         let key = key.trim();
 
         if CANONICAL_RE.is_match(key) {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         }
 
         if let Some(canonical) = parse_camelot(key) {
@@ -176,7 +176,7 @@ mod tests {
     use super::KeyCanonicalCamelotRule;
     use crate::linter::{LintTarget, Rule, test_utils::make_track};
 
-    fn check_with(key: &str) -> crate::linter::LintResult {
+    fn check_with(key: &str) -> crate::linter::CheckOutcome {
         let mut track = make_track();
         track.fields.key = Some(key.to_string());
         KeyCanonicalCamelotRule.check(&track.into())

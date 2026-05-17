@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -45,10 +45,10 @@ impl Rule for BpmNumericRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         let Some(bpm) = track.fields.bpm.as_deref() else {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         };
         let trimmed = bpm.trim();
 
@@ -110,7 +110,7 @@ mod tests {
     use super::BpmNumericRule;
     use crate::linter::{LintTarget, Rule, test_utils::make_track};
 
-    fn check_with(bpm: &str) -> crate::linter::LintResult {
+    fn check_with(bpm: &str) -> crate::linter::CheckOutcome {
         let mut track = make_track();
         track.fields.bpm = Some(bpm.to_string());
         BpmNumericRule.check(&track.into())

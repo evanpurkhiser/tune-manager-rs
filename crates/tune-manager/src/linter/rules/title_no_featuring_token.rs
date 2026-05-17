@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
 };
 
@@ -32,17 +32,17 @@ impl Rule for TitleNoFeaturingTokenRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         let Some(title) = track.fields.title.as_deref() else {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         };
         if FEAT_RE.is_match(title) {
             return self
                 .error("Title should not include featuring token")
                 .into();
         }
-        LintResult::Passed
+        CheckOutcome::Passed
     }
 }
 

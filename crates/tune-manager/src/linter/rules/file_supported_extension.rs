@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
 };
 
@@ -27,7 +27,7 @@ impl Rule for FileSupportedExtensionRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         let supported: HashSet<&str> = ["mp3", "aiff"].into_iter().collect();
         let ext = track
@@ -38,7 +38,7 @@ impl Rule for FileSupportedExtensionRule {
             .map(|s| s.to_ascii_lowercase());
 
         match ext {
-            Some(ext) if supported.contains(ext.as_str()) => LintResult::Passed,
+            Some(ext) if supported.contains(ext.as_str()) => CheckOutcome::Passed,
             _ => self.error("File extension is not supported").into(),
         }
     }

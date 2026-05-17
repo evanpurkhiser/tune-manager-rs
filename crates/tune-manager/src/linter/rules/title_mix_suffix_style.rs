@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
 };
 
@@ -36,16 +36,16 @@ impl Rule for TitleMixSuffixStyleRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         let Some(title) = track.fields.title.as_deref() else {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         };
         let any_non_canonical = FUZZY_MIX_RE
             .captures_iter(title)
             .any(|caps| caps[2] != title_case(&caps[2]));
         if !any_non_canonical {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         }
         self.error("Title mix suffix is not canonical")
             .with_fix(|track| {

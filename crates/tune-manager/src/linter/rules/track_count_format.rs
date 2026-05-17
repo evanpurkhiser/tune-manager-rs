@@ -1,6 +1,6 @@
 use crate::{
     fields::CountField,
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
 };
 
@@ -26,15 +26,15 @@ impl Rule for TrackCountFormatRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         match track.fields.track.as_ref() {
-            None => LintResult::Passed,
+            None => CheckOutcome::Passed,
             Some(CountField::Invalid(_)) => self.error("Track number format is invalid").into(),
             Some(CountField::Valid(c)) if c.number == 0 || c.total == 0 || c.number > c.total => {
                 self.error("Track number is out of valid range").into()
             }
-            Some(CountField::Valid(_)) => LintResult::Passed,
+            Some(CountField::Valid(_)) => CheckOutcome::Passed,
         }
     }
 }

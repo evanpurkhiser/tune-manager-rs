@@ -1,6 +1,6 @@
 use crate::linter::{
     lint_target::LintTarget,
-    result::LintResult,
+    result::CheckOutcome,
     violation::{RuleSeverity, RuleViolation},
 };
 
@@ -48,28 +48,26 @@ macro_rules! rule_metadata {
 pub trait Rule: Send + Sync {
     fn metadata(&self) -> &'static RuleMetadata;
 
-    fn check(&self, target: &LintTarget) -> LintResult;
+    fn check(&self, target: &LintTarget) -> CheckOutcome;
 
-    /// Build an `Error`-severity violation tagged with this rule's id.
+    /// Convenience constructor for an `Error`-severity violation.
     fn error(&self, message: impl Into<String>) -> RuleViolation
     where
         Self: Sized,
     {
         RuleViolation {
-            rule_id: self.metadata().id,
             severity: RuleSeverity::Error,
             message: message.into(),
             fix: None,
         }
     }
 
-    /// Build a `Warn`-severity violation tagged with this rule's id.
+    /// Convenience constructor for a `Warn`-severity violation.
     fn warn(&self, message: impl Into<String>) -> RuleViolation
     where
         Self: Sized,
     {
         RuleViolation {
-            rule_id: self.metadata().id,
             severity: RuleSeverity::Warn,
             message: message.into(),
             fix: None,

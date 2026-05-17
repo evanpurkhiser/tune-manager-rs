@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -42,7 +42,7 @@ impl Rule for MetaRemixerTitleConsistencyRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         let title = track.fields.title.as_deref().unwrap_or_default();
         let remixer = track
@@ -67,7 +67,7 @@ impl Rule for MetaRemixerTitleConsistencyRule {
                 .error("Remixer field does not match title remix note")
                 .with_fix(extract_remixer_from_title)
                 .into(),
-            _ => LintResult::Passed,
+            _ => CheckOutcome::Passed,
         }
     }
 }

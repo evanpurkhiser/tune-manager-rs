@@ -9,7 +9,7 @@ pub mod violation;
 pub mod test_utils;
 
 pub use lint_target::LintTarget;
-pub use result::LintResult;
+pub use result::{CheckOutcome, RuleResult};
 pub use rule::{Rule, RuleMetadata};
 pub use text_field::TextField;
 // Public surface used only via `linter::*` paths once the engine is wired.

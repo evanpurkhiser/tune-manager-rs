@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
 };
 
@@ -30,14 +30,14 @@ impl Rule for YearFormatRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         let Some(year) = track.fields.year.as_deref() else {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         };
 
         if YEAR_RE.is_match(year) {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         }
         self.error("Year must be in YYYY format").into()
     }

@@ -1,5 +1,5 @@
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata, TextField},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata, TextField},
     rule_metadata,
 };
 
@@ -49,7 +49,7 @@ impl Rule for MetaDisallowedCharactersRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         TextField::ALL
             .into_iter()

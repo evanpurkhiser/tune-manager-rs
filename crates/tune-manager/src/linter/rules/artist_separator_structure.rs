@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
     track::Track,
 };
@@ -65,10 +65,10 @@ impl Rule for ArtistSeparatorStructureRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         let Some(artist) = track.fields.artist.as_deref() else {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         };
         let mut violations = vec![];
 
@@ -160,7 +160,7 @@ mod tests {
     use super::ArtistSeparatorStructureRule;
     use crate::linter::{LintTarget, Rule, test_utils::make_track};
 
-    fn check_with(artist: &str) -> crate::linter::LintResult {
+    fn check_with(artist: &str) -> crate::linter::CheckOutcome {
         let mut track = make_track();
         track.fields.artist = Some(artist.to_string());
         ArtistSeparatorStructureRule.check(&track.into())

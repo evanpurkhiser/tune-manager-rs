@@ -1,5 +1,5 @@
 use crate::{
-    linter::{LintResult, LintTarget, Rule, RuleMetadata},
+    linter::{CheckOutcome, LintTarget, Rule, RuleMetadata},
     rule_metadata,
 };
 
@@ -25,13 +25,13 @@ impl Rule for PathMatchesCanonicalRule {
         &METADATA
     }
 
-    fn check(&self, target: &LintTarget) -> LintResult {
+    fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
         let canonical = track.cononical_path();
         let actual = &track.file.file_path;
 
         if actual.ends_with(&canonical) {
-            return LintResult::Passed;
+            return CheckOutcome::Passed;
         }
 
         self.error(format!(
