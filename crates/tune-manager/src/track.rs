@@ -19,10 +19,24 @@ pub struct Track {
     pub tags: TrackTags,
 }
 
-impl From<(PathBuf, Tag)> for Track {
-    fn from((entry, tag): (PathBuf, Tag)) -> Self {
+/// A file on disk paired with its parsed ID3 tag.
+pub struct TaggedFile {
+    pub path: PathBuf,
+    pub tag: Tag,
+}
+
+impl TaggedFile {
+    /// Read the ID3 tag at `path` and pair it with the path.
+    pub fn read(path: PathBuf) -> Result<Self, id3::Error> {
+        let tag = Tag::read_from_path(&path)?;
+        Ok(Self { path, tag })
+    }
+}
+
+impl From<TaggedFile> for Track {
+    fn from(TaggedFile { path, tag }: TaggedFile) -> Self {
         Self {
-            metadata: entry.into(),
+            metadata: path.into(),
             tags: TrackTags::from(&tag),
         }
     }
