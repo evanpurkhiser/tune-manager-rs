@@ -1,4 +1,4 @@
-use crate::linter::Rule;
+use crate::linter::{Rule, rules::meta_text_trimmed::MetaTextTrimmedRule};
 
 pub mod album_requires_disc;
 pub mod artist_feat_standardization;
@@ -22,28 +22,28 @@ pub mod track_count_format;
 pub mod track_requires_disc;
 pub mod year_format;
 
-pub fn track_only_rules() -> Vec<Box<dyn Rule>> {
+pub fn all_rules() -> Vec<Box<dyn Rule>> {
     vec![
+        Box::new(MetaTextTrimmedRule),
+        Box::new(meta_disallowed_characters::MetaDisallowedCharactersRule),
+        Box::new(meta_publisher_catalog_pairing::MetaPublisherCatalogPairingRule),
+        Box::new(meta_remixer_title_consistency::MetaRemixerTitleConsistencyRule),
+        Box::new(meta_required_fields_present::MetaRequiredFieldsPresentRule),
         Box::new(file_supported_extension::FileSupportedExtensionRule),
         Box::new(path_matches_canonical::PathMatchesCanonicalRule),
-        Box::new(key_canonical_camelot::KeyCanonicalCamelotRule),
-        Box::new(track_count_format::TrackCountFormatRule),
-        Box::new(disc_count_format::DiscCountFormatRule),
-        Box::new(album_requires_disc::AlbumRequiresDiscRule),
-        Box::new(disc_requires_track::DiscRequiresTrackRule),
-        Box::new(track_requires_disc::TrackRequiresDiscRule),
-        Box::new(meta_publisher_catalog_pairing::MetaPublisherCatalogPairingRule),
-        Box::new(meta_required_fields_present::MetaRequiredFieldsPresentRule),
-        Box::new(meta_text_trimmed::MetaTextTrimmedRule),
-        Box::new(meta_disallowed_characters::MetaDisallowedCharactersRule),
         Box::new(title_mix_suffix_style::TitleMixSuffixStyleRule),
-        Box::new(title_no_original_mix::TitleNoOriginalMixRule),
         Box::new(title_no_featuring_token::TitleNoFeaturingTokenRule),
-        Box::new(meta_remixer_title_consistency::MetaRemixerTitleConsistencyRule),
+        Box::new(title_no_original_mix::TitleNoOriginalMixRule),
+        Box::new(artist_feat_standardization::ArtistFeatStandardizationRule),
         Box::new(artist_separator_standardization::ArtistSeparatorStandardizationRule),
         Box::new(artist_separator_structure::ArtistSeparatorStructureRule),
-        Box::new(artist_feat_standardization::ArtistFeatStandardizationRule),
-        Box::new(year_format::YearFormatRule),
+        Box::new(disc_count_format::DiscCountFormatRule),
+        Box::new(track_count_format::TrackCountFormatRule),
+        Box::new(album_requires_disc::AlbumRequiresDiscRule),
+        Box::new(track_requires_disc::TrackRequiresDiscRule),
+        Box::new(disc_requires_track::DiscRequiresTrackRule),
         Box::new(bpm_numeric::BpmNumericRule),
+        Box::new(year_format::YearFormatRule),
+        Box::new(key_canonical_camelot::KeyCanonicalCamelotRule),
     ]
 }

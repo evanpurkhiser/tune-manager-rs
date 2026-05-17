@@ -13,6 +13,6 @@ pub use text_field::TextField;
 // Public surface used only via `linter::*` paths once the engine is wired.
 // Re-export now so callers don't need to know the internal module split.
 #[allow(unused_imports)]
-pub use rules::track_only_rules;
+pub use rules::all_rules;
 #[allow(unused_imports)]
 pub use violation::{Fix, RuleSeverity, RuleViolation};
