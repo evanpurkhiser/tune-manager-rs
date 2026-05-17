@@ -2,9 +2,9 @@
 //!
 //! # Overview
 //!
-//! The coordinator orchestrates the processing of audio track batches through four sequential
-//! stages: PrepareMedia, Keyfinder, Beatport, and AI. It manages stage dependencies, tracks
-//! progress, and enables concurrent processing of multiple batches and tracks.
+//! The coordinator orchestrates the processing of audio track batches through five sequential
+//! stages: PrepareMedia, Keyfinder, Beatport, LintFix, and AI. It manages stage dependencies,
+//! tracks progress, and enables concurrent processing of multiple batches and tracks.
 //!
 //! # Processing Pipeline
 //!
@@ -14,13 +14,17 @@
 //! PrepareMedia
 //!   → Keyfinder (parallel)
 //!   → Beatport
-//!     → AI (batch-level, waits for all tracks)
+//!     → LintFix
+//!       → AI (batch-level, waits for all tracks)
 //! ```
 //!
 //! - **PrepareMedia**: Converts to supported format (AIFF/MP3), ensures ID3v2.4 tags, computes media hash
 //! - **Keyfinder**: Detects musical key (runs in parallel with Beatport after PrepareMedia)
 //! - **Beatport**: Fetches track metadata from Beatport API if applicable
-//! - **AI**: Cleans and normalizes metadata (processes entire batch together once all tracks complete Beatport)
+//! - **LintFix**: Runs the linter engine and applies auto-fixes, preserving any remaining
+//!   violations on the stage result for downstream stages to consume
+//! - **AI**: Cleans and normalizes metadata (processes entire batch together once all tracks
+//!   complete LintFix)
 //!
 //! # Architecture
 //!
@@ -101,7 +105,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::app::config::Config;
 
-use super::stages::{ai, beatport, keyfinder, prepare_media};
+use super::stages::{ai, beatport, keyfinder, lint_fix, prepare_media};
 
 use self::{
     batch::{
@@ -126,6 +130,7 @@ pub struct StageProcessors {
     pub prepare_media_sender: prepare_media::PrepareMediaSender,
     pub keyfinder_sender: keyfinder::KeyfinderSender,
     pub beatport_sender: beatport::BeatportSender,
+    pub lint_fix_sender: lint_fix::LintFixSender,
     pub ai_sender: ai::AiSender,
 }
 
@@ -147,6 +152,11 @@ impl StageProcessors {
         let beatport_sender = beatport_processor.get_sender();
         tokio::spawn(beatport_processor.start());
 
+        // Create and start lint-fix processor
+        let lint_fix_processor = lint_fix::new_lint_fix_processor();
+        let lint_fix_sender = lint_fix_processor.get_sender();
+        tokio::spawn(lint_fix_processor.start());
+
         // Create and start AI processor
         let ai_processor = ai::new_ai_processor(config.ai.as_ref());
         let ai_sender = ai_processor.get_sender();
@@ -156,6 +166,7 @@ impl StageProcessors {
             prepare_media_sender,
             keyfinder_sender,
             beatport_sender,
+            lint_fix_sender,
             ai_sender,
         }
     }

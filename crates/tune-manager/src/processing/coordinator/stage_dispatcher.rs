@@ -5,7 +5,10 @@ use tokio::sync::mpsc;
 
 use crate::{
     processing::{
-        stages::{ProcessingStage, StageInput, StageMode, ai, beatport, keyfinder, prepare_media},
+        stages::{
+            ProcessingStage, StageInput, StageMode, ai, beatport, keyfinder, lint_fix,
+            prepare_media,
+        },
         state,
     },
     track::Track,
@@ -77,6 +80,13 @@ fn create_stage_input(
                 .tag
                 .clone()
                 .map(|tag| beatport::BeatportInput { file_path, tag }.into())
+        }
+        ProcessingStage::LintFix => {
+            let file_path = track_state.file_path.clone();
+            track_state
+                .tag
+                .clone()
+                .map(|tag| lint_fix::LintFixInput { file_path, tag }.into())
         }
         ProcessingStage::Ai => None,
     }
@@ -247,6 +257,7 @@ mod tests {
         mark_stage_complete(track, ProcessingStage::PrepareMedia);
         mark_stage_complete(track, ProcessingStage::Keyfinder);
         mark_stage_complete(track, ProcessingStage::Beatport);
+        mark_stage_complete(track, ProcessingStage::LintFix);
 
         // Need to add a tag with revision for AI to work
         let mut tag = Tag::new();
@@ -276,6 +287,7 @@ mod tests {
         mark_stage_complete(track, ProcessingStage::PrepareMedia);
         mark_stage_complete(track, ProcessingStage::Keyfinder);
         mark_stage_complete(track, ProcessingStage::Beatport);
+        mark_stage_complete(track, ProcessingStage::LintFix);
         track.tag = Some(Tag::new());
 
         // Mark AI as already dispatched at batch level
@@ -341,11 +353,12 @@ mod tests {
         let mut batch = ProcessingBatch::new(vec![file1.clone(), file2.clone()], config, tx);
         let (stage_dispatch_tx, mut stage_dispatch_rx) = mpsc::unbounded_channel();
 
-        // Track 1: Complete all stages up to and including Beatport (ready for AI)
+        // Track 1: Complete all stages up to and including LintFix (ready for AI)
         let track1 = batch.tracks.get_mut(&file1).unwrap();
         mark_stage_complete(track1, ProcessingStage::PrepareMedia);
         mark_stage_complete(track1, ProcessingStage::Keyfinder);
         mark_stage_complete(track1, ProcessingStage::Beatport);
+        mark_stage_complete(track1, ProcessingStage::LintFix);
         let mut tag1 = Tag::new();
         let revision1 = TrackRevision::new(Default::default());
         state::append_track_revision(&mut tag1, revision1).unwrap();
@@ -371,10 +384,11 @@ mod tests {
         assert!(!dispatched_stages.contains(&ProcessingStage::Ai));
         assert!(!batch.stage_dispatched.contains(&ProcessingStage::Ai));
 
-        // Now complete track2's Keyfinder and Beatport stages
+        // Now complete track2's Keyfinder, Beatport, and LintFix stages
         let track2 = batch.tracks.get_mut(&file2).unwrap();
         mark_stage_complete(track2, ProcessingStage::Keyfinder);
         mark_stage_complete(track2, ProcessingStage::Beatport);
+        mark_stage_complete(track2, ProcessingStage::LintFix);
         let mut tag2 = Tag::new();
         let revision2 = TrackRevision::new(Default::default());
         state::append_track_revision(&mut tag2, revision2).unwrap();
@@ -417,6 +431,7 @@ mod tests {
         track1.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
         track1.set_stage_status(make_status_completed(ProcessingStage::Keyfinder));
         track1.set_stage_status(make_status_completed(ProcessingStage::Beatport));
+        track1.set_stage_status(make_status_completed(ProcessingStage::LintFix));
         tracks.insert(PathBuf::from("/test/track1.mp3"), track1);
 
         // Track 2: Failed at PrepareMedia

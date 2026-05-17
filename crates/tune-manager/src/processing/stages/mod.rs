@@ -6,6 +6,7 @@ use crate::processing::{concurrent::ItemStatus, state::TrackRevision};
 pub mod ai;
 pub mod beatport;
 pub mod keyfinder;
+pub mod lint_fix;
 pub mod prepare_media;
 
 /// Trait for types that can produce a TrackRevision from their results
@@ -28,6 +29,10 @@ pub enum ProcessingStage {
     /// Extracts Beatport URL from WOAF tags and fetches track metadata from Beatport API
     Beatport,
 
+    /// Runs the linter engine and applies auto-fixes. Remaining violations are
+    /// preserved on the result for downstream stages (e.g. AI) to consume.
+    LintFix,
+
     /// Uses AI to clean up and normalize track metadata
     Ai,
 }
@@ -47,6 +52,7 @@ impl ProcessingStage {
             ProcessingStage::PrepareMedia => StageMode::IndividualTrack,
             ProcessingStage::Keyfinder => StageMode::IndividualTrack,
             ProcessingStage::Beatport => StageMode::IndividualTrack,
+            ProcessingStage::LintFix => StageMode::IndividualTrack,
             ProcessingStage::Ai => StageMode::Batch,
         }
     }
@@ -57,6 +63,7 @@ impl ProcessingStage {
             ProcessingStage::PrepareMedia => StageStatus::PrepareMedia(ItemStatus::Skipped(reason)),
             ProcessingStage::Keyfinder => StageStatus::Keyfinder(ItemStatus::Skipped(reason)),
             ProcessingStage::Beatport => StageStatus::Beatport(ItemStatus::Skipped(reason)),
+            ProcessingStage::LintFix => StageStatus::LintFix(ItemStatus::Skipped(reason)),
             ProcessingStage::Ai => StageStatus::Ai(ItemStatus::Skipped(reason)),
         }
     }
@@ -67,6 +74,7 @@ pub enum StageInput {
     PrepareMedia(prepare_media::PrepareMediaInput),
     Keyfinder(keyfinder::KeyfinderInput),
     Beatport(beatport::BeatportInput),
+    LintFix(lint_fix::LintFixInput),
     Ai(ai::AiInput),
 }
 
@@ -88,6 +96,12 @@ impl From<beatport::BeatportInput> for StageInput {
     }
 }
 
+impl From<lint_fix::LintFixInput> for StageInput {
+    fn from(value: lint_fix::LintFixInput) -> Self {
+        StageInput::LintFix(value)
+    }
+}
+
 impl From<ai::AiInput> for StageInput {
     fn from(value: ai::AiInput) -> Self {
         StageInput::Ai(value)
@@ -101,6 +115,7 @@ impl StageInput {
             Self::PrepareMedia(_) => ProcessingStage::PrepareMedia,
             Self::Keyfinder(_) => ProcessingStage::Keyfinder,
             Self::Beatport(_) => ProcessingStage::Beatport,
+            Self::LintFix(_) => ProcessingStage::LintFix,
             Self::Ai(_) => ProcessingStage::Ai,
         }
     }
@@ -111,6 +126,7 @@ pub enum StageStatus {
     PrepareMedia(prepare_media::ItemStatus),
     Keyfinder(keyfinder::ItemStatus),
     Beatport(beatport::ItemStatus),
+    LintFix(lint_fix::ItemStatus),
     Ai(ai::ItemStatus),
 }
 
@@ -129,6 +145,12 @@ impl From<keyfinder::ItemStatus> for StageStatus {
 impl From<beatport::ItemStatus> for StageStatus {
     fn from(value: beatport::ItemStatus) -> Self {
         StageStatus::Beatport(value)
+    }
+}
+
+impl From<lint_fix::ItemStatus> for StageStatus {
+    fn from(value: lint_fix::ItemStatus) -> Self {
+        StageStatus::LintFix(value)
     }
 }
 
@@ -174,6 +196,7 @@ impl StageStatus {
             StageStatus::PrepareMedia(_) => ProcessingStage::PrepareMedia,
             StageStatus::Keyfinder(_) => ProcessingStage::Keyfinder,
             StageStatus::Beatport(_) => ProcessingStage::Beatport,
+            StageStatus::LintFix(_) => ProcessingStage::LintFix,
             StageStatus::Ai(_) => ProcessingStage::Ai,
         }
     }
@@ -183,6 +206,7 @@ impl StageStatus {
             StageStatus::PrepareMedia(status) => extract_status!(status),
             StageStatus::Keyfinder(status) => extract_status!(status),
             StageStatus::Beatport(status) => extract_status!(status),
+            StageStatus::LintFix(status) => extract_status!(status),
             StageStatus::Ai(status) => extract_status!(status),
         }
     }
@@ -219,10 +243,12 @@ impl StageStatus {
             StageStatus::PrepareMedia(ItemStatus::Complete(Ok(result))) => Some(result),
             StageStatus::Keyfinder(ItemStatus::Complete(Ok(result))) => Some(result),
             StageStatus::Beatport(ItemStatus::Complete(Ok(result))) => Some(result),
+            StageStatus::LintFix(ItemStatus::Complete(Ok(result))) => Some(result),
             StageStatus::Ai(ItemStatus::Complete(Ok(result))) => Some(result),
             StageStatus::PrepareMedia(_)
             | StageStatus::Keyfinder(_)
             | StageStatus::Beatport(_)
+            | StageStatus::LintFix(_)
             | StageStatus::Ai(_) => None,
         }
     }
@@ -246,6 +272,7 @@ pub mod test_helpers {
             ProcessingStage::PrepareMedia => StageStatus::PrepareMedia(ItemStatus::Running),
             ProcessingStage::Keyfinder => StageStatus::Keyfinder(ItemStatus::Running),
             ProcessingStage::Beatport => StageStatus::Beatport(ItemStatus::Running),
+            ProcessingStage::LintFix => StageStatus::LintFix(ItemStatus::Running),
             ProcessingStage::Ai => StageStatus::Ai(ItemStatus::Running),
         };
         Arc::new(status)
@@ -270,6 +297,14 @@ pub mod test_helpers {
             }
             ProcessingStage::Beatport => {
                 StageStatus::Beatport(ItemStatus::Skipped("No Beatport URL".to_string()))
+            }
+            ProcessingStage::LintFix => {
+                let result = lint_fix::LintFixResult {
+                    fields: Default::default(),
+                    results: Vec::new(),
+                    hit_max_iterations: false,
+                };
+                StageStatus::LintFix(ItemStatus::Complete(Ok(result)))
             }
             ProcessingStage::Ai => {
                 let result = ai::AiResult {

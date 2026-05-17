@@ -254,7 +254,8 @@ impl TrackProcessingState {
             ProcessingStage::PrepareMedia => true,
             ProcessingStage::Keyfinder => self.is_stage_done(ProcessingStage::PrepareMedia),
             ProcessingStage::Beatport => self.is_stage_done(ProcessingStage::PrepareMedia),
-            ProcessingStage::Ai => self.is_stage_done(ProcessingStage::Beatport),
+            ProcessingStage::LintFix => self.is_stage_done(ProcessingStage::Beatport),
+            ProcessingStage::Ai => self.is_stage_done(ProcessingStage::LintFix),
         };
 
         stage_ready && !self.stage_dispatched.contains(stage)
@@ -383,17 +384,31 @@ mod tests {
     }
 
     #[test]
-    fn test_can_run_stage_ai_requires_beatport() {
+    fn test_can_run_stage_ai_requires_lint_fix() {
         let mut track = TrackProcessingState::new("/test/track.mp3");
 
         assert!(!track.can_run_stage(&ProcessingStage::Ai));
 
-        // PrepareMedia alone is not enough for AI
+        // Earlier stages alone are not enough for AI
         track.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
+        track.set_stage_status(make_status_completed(ProcessingStage::Beatport));
         assert!(!track.can_run_stage(&ProcessingStage::Ai));
 
-        track.set_stage_status(make_status_completed(ProcessingStage::Beatport));
+        track.set_stage_status(make_status_completed(ProcessingStage::LintFix));
         assert!(track.can_run_stage(&ProcessingStage::Ai));
+    }
+
+    #[test]
+    fn test_can_run_stage_lint_fix_requires_beatport() {
+        let mut track = TrackProcessingState::new("/test/track.mp3");
+
+        assert!(!track.can_run_stage(&ProcessingStage::LintFix));
+
+        track.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
+        assert!(!track.can_run_stage(&ProcessingStage::LintFix));
+
+        track.set_stage_status(make_status_completed(ProcessingStage::Beatport));
+        assert!(track.can_run_stage(&ProcessingStage::LintFix));
     }
 
     #[test]
@@ -450,6 +465,7 @@ mod tests {
         track.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
         track.set_stage_status(make_status_completed(ProcessingStage::Keyfinder));
         track.set_stage_status(make_status_completed(ProcessingStage::Beatport));
+        track.set_stage_status(make_status_completed(ProcessingStage::LintFix));
         track.set_stage_status(make_status_completed(ProcessingStage::Ai));
 
         assert!(batch.is_complete());
@@ -492,6 +508,7 @@ mod tests {
         track1.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
         track1.set_stage_status(make_status_completed(ProcessingStage::Keyfinder));
         track1.set_stage_status(make_status_completed(ProcessingStage::Beatport));
+        track1.set_stage_status(make_status_completed(ProcessingStage::LintFix));
         track1.set_stage_status(make_status_completed(ProcessingStage::Ai));
 
         assert!(!batch.is_complete());
@@ -503,6 +520,7 @@ mod tests {
         track2.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
         track2.set_stage_status(make_status_completed(ProcessingStage::Keyfinder));
         track2.set_stage_status(make_status_completed(ProcessingStage::Beatport));
+        track2.set_stage_status(make_status_completed(ProcessingStage::LintFix));
         track2.set_stage_status(make_status_completed(ProcessingStage::Ai));
 
         assert!(batch.is_complete());
@@ -585,6 +603,7 @@ mod tests {
         track2.set_stage_status(make_status_completed(ProcessingStage::PrepareMedia));
         track2.set_stage_status(make_status_completed(ProcessingStage::Keyfinder));
         track2.set_stage_status(make_status_completed(ProcessingStage::Beatport));
+        track2.set_stage_status(make_status_completed(ProcessingStage::LintFix));
         track2.set_stage_status(make_status_completed(ProcessingStage::Ai));
 
         // Now batch should be complete - track1 failed, track2 succeeded

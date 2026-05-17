@@ -61,6 +61,16 @@ pub fn handle_stage_dispatch(
                 monitor_stage_completion(vec![file_path], batch_id, sent_item, status_tx).await;
             });
         }
+        StageInput::LintFix(input) => {
+            let status_tx = status_update_sender.clone();
+            let sender = processors.lint_fix_sender.clone();
+            let file_path = input.file_path.clone();
+
+            tokio::spawn(async move {
+                let sent_item = sender.send(input);
+                monitor_stage_completion(vec![file_path], batch_id, sent_item, status_tx).await;
+            });
+        }
         StageInput::Ai(input) => {
             let status_tx = status_update_sender.clone();
             let sender = processors.ai_sender.clone();

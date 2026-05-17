@@ -405,6 +405,7 @@ mod tests {
         mark_stage_complete(track, ProcessingStage::PrepareMedia);
         mark_stage_complete(track, ProcessingStage::Keyfinder);
         mark_stage_complete(track, ProcessingStage::Beatport);
+        mark_stage_complete(track, ProcessingStage::LintFix);
 
         // Add a tag with revision so AI can complete
         let mut tag = Tag::new();
