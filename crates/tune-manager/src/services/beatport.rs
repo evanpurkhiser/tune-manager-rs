@@ -46,7 +46,7 @@ pub enum BeatportApiError {
     RequestError(#[from] reqwest::Error),
 
     #[error("Missing release ID for track")]
-    MissingRelaseId,
+    MissingReleaseId,
 
     #[error("Problem during authentication: {0}")]
     AuthenticationError(String),
@@ -294,7 +294,7 @@ impl BeatportSource<Authenticated> {
 
         let release_id = track["release"]["id"]
             .as_u64()
-            .ok_or(BeatportApiError::MissingRelaseId)?;
+            .ok_or(BeatportApiError::MissingReleaseId)?;
 
         let url = format!("{}/v4/catalog/releases/{}/", self.base_url_apis, release_id);
         let release_resp = self

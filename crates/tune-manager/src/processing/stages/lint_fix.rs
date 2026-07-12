@@ -51,8 +51,9 @@ pub struct LintFixResult {
     pub hit_max_iterations: bool,
 }
 
-type LintFixFuture =
-    std::pin::Pin<Box<dyn std::future::Future<Output = Result<LintFixResult, LintFixError>> + Send>>;
+type LintFixFuture = std::pin::Pin<
+    Box<dyn std::future::Future<Output = Result<LintFixResult, LintFixError>> + Send>,
+>;
 type LintFixProcessFn = Box<dyn Fn(LintFixInput) -> LintFixFuture + Send + Sync>;
 
 pub type LintFixProcessor =

@@ -122,6 +122,7 @@ impl StageInput {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum StageStatus {
     PrepareMedia(prepare_media::ItemStatus),
     Keyfinder(keyfinder::ItemStatus),

@@ -90,7 +90,7 @@ impl From<&Tag> for TrackFields {
             album: T::Album.read(tag),
             remixer: T::Remixer.read(tag),
             publisher: T::Publisher.read(tag),
-            catalog_id: T::CatlogId.read(tag),
+            catalog_id: T::CatalogId.read(tag),
             year: T::Year.read(tag),
             genre: T::Genre.read(tag),
             key: T::Key.read(tag),
@@ -112,7 +112,7 @@ static PATH_REPLACEMENTS: LazyLock<Vec<(Regex, &str)>> = LazyLock::new(|| {
 
 impl Track {
     /// Construct's the canonical path that the track should be located at derived from it's tags.
-    pub fn cononical_path(&self) -> PathBuf {
+    pub fn canonical_path(&self) -> PathBuf {
         let fields = &self.fields;
         let mut path_parts = vec![];
 
@@ -259,10 +259,10 @@ mod tests {
     }
 
     #[test]
-    fn test_cononical_path() {
+    fn test_canonical_path() {
         let track: Track = TrackFields::default().into();
         assert_eq!(
-            track.cononical_path().to_str().unwrap(),
+            track.canonical_path().to_str().unwrap(),
             "Publisher/[RLS] Album/Disc 2/01. [10A] Artist - Title.mp3"
         );
 
@@ -272,7 +272,7 @@ mod tests {
         }
         .into();
         assert_eq!(
-            no_publisher.cononical_path().to_str().unwrap(),
+            no_publisher.canonical_path().to_str().unwrap(),
             "[+no-label]/[RLS] Album/Disc 2/01. [10A] Artist - Title.mp3"
         );
 
@@ -282,7 +282,7 @@ mod tests {
         }
         .into();
         assert_eq!(
-            no_catalog_id.cononical_path().to_str().unwrap(),
+            no_catalog_id.canonical_path().to_str().unwrap(),
             "Publisher/[--] Album/Disc 2/01. [10A] Artist - Title.mp3"
         );
 
@@ -294,7 +294,7 @@ mod tests {
         }
         .into();
         assert_eq!(
-            single.cononical_path().to_str().unwrap(),
+            single.canonical_path().to_str().unwrap(),
             "Publisher/[+singles]/[RLS] [10A] Artist - Title.mp3"
         );
 
@@ -307,7 +307,7 @@ mod tests {
         }
         .into();
         assert_eq!(
-            single_no_catalog_id.cononical_path().to_str().unwrap(),
+            single_no_catalog_id.canonical_path().to_str().unwrap(),
             "Publisher/[+singles]/[10A] Artist - Title.mp3"
         );
 
@@ -317,7 +317,7 @@ mod tests {
         }
         .into();
         assert_eq!(
-            special_characters.cononical_path().to_str().unwrap(),
+            special_characters.canonical_path().to_str().unwrap(),
             "Publisher/[RLS] Album/Disc 2/01. [10A] Artist - What P Real new-track cool.mp3"
         );
     }

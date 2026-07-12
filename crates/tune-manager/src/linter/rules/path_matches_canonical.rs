@@ -27,7 +27,7 @@ impl Rule for PathMatchesCanonicalRule {
 
     fn check(&self, target: &LintTarget) -> CheckOutcome {
         let track = &target.track;
-        let canonical = track.cononical_path();
+        let canonical = track.canonical_path();
         let actual = &track.file.file_path;
 
         if actual.ends_with(&canonical) {

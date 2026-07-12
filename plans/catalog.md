@@ -68,9 +68,9 @@ These are the rules we should document first, then implement incrementally.
 
 #### `path.matches-canonical`
    - Track only: Yes.
-   - Actual path must match `Track::cononical_path` output.
+   - Actual path must match `Track::canonical_path` output.
 
-TODO: Add focused tests for `Track::cononical_path` normalization behavior to
+TODO: Add focused tests for `Track::canonical_path` normalization behavior to
 ensure it continues to cover safe character sanitization, whitespace
 normalization, and lowercase extension normalization.
 

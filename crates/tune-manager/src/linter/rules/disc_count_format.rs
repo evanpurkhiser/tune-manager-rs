@@ -49,11 +49,7 @@ mod tests {
 
     #[test]
     fn ok_case() {
-        assert!(
-            DiscCountFormatRule
-                .check(&make_track().into())
-                .is_passed()
-        );
+        assert!(DiscCountFormatRule.check(&make_track().into()).is_passed());
     }
 
     #[test]
@@ -61,10 +57,7 @@ mod tests {
         let mut track = make_track();
         track.fields.disc = Some(CountField::Invalid("x".to_string()));
         assert_eq!(
-            DiscCountFormatRule
-                .check(&track.into())
-                .violations()
-                .len(),
+            DiscCountFormatRule.check(&track.into()).violations().len(),
             1
         );
     }

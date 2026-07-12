@@ -57,19 +57,13 @@ mod tests {
     fn fail_case() {
         let mut track = make_track();
         track.fields.year = Some("15".to_string());
-        assert_eq!(
-            YearFormatRule.check(&track.into()).violations().len(),
-            1
-        );
+        assert_eq!(YearFormatRule.check(&track.into()).violations().len(), 1);
     }
 
     #[test]
     fn fail_case_with_whitespace() {
         let mut track = make_track();
         track.fields.year = Some(" 2015 ".to_string());
-        assert_eq!(
-            YearFormatRule.check(&track.into()).violations().len(),
-            1
-        );
+        assert_eq!(YearFormatRule.check(&track.into()).violations().len(), 1);
     }
 }

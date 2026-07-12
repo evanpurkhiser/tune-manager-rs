@@ -29,7 +29,7 @@ Here'swhat im thinking for stages
   sneds groups by folder.
 
   This step should first figure out how to batch the files. For example if it's
-  only top-levle files and we reach the limit per request (lets say 50) it
+  only top-level files and we reach the limit per request (lets say 50) it
   should chunk into 50. If there are folders however we should count the total
   files in a tree of folders, if it's less than 50 that folder is a batch. If
   it's more however, then we would do the same recursive logic of looking for
@@ -62,7 +62,7 @@ Instead of external state files, we'll use two GEOB (General Encapsulated Object
 }
 ```
 
-#### Metadata History GEOB (`tune-manager-metadata-history`)  
+#### Metadata History GEOB (`tune-manager-metadata-history`)
 ```json
 {
   "history": [
@@ -72,7 +72,7 @@ Instead of external state files, we'll use two GEOB (General Encapsulated Object
       "track": { /* serialized Track with original metadata */ }
     },
     {
-      "stage": "Keyfinder", 
+      "stage": "Keyfinder",
       "timestamp": "2025-10-11T05:15:00Z",
       "track": { /* Track with key field added */ }
     }
@@ -99,11 +99,11 @@ for file in files {
     let mut tag = Tag::read_from_path(&file)?;
     let completed_stages = read_completed_stages(&tag);
     let current_metadata = read_latest_metadata_history(&tag);
-    
+
     for stage in determine_next_stages(&completed_stages) {
         // Stage gets read-only data, returns new Track + result details (idempotent)
         let (updated_track, stage_result) = process_stage(stage, &current_metadata)?;
-        
+
         // Coordinator updates both GEOB frames atomically
         append_metadata_history(&mut tag, &stage, updated_track);
         append_stage_result(&mut tag, &stage, stage_result);
@@ -117,7 +117,7 @@ for file in files {
 ```rust
 // Stages are idempotent functions - safe to run multiple times
 fn process_stage(
-    stage: ProcessingStage, 
+    stage: ProcessingStage,
     current_metadata: &Track,
 ) -> Result<(Track, StageResult), ProcessError>
 ```
@@ -141,7 +141,7 @@ All metadata changes are stored in history GEOB - actual ID3 fields are never mo
 
 **User Commands:**
 - `tune-manager process <dir>` - Run processing pipeline, store in GEOB
-- `tune-manager status <files>` - Show processing state and pending changes  
+- `tune-manager status <files>` - Show processing state and pending changes
 - `tune-manager diff <files>` - Show what each stage changed
 - `tune-manager commit <files>` - Apply latest history to actual ID3 fields
 - `tune-manager rollback <files> <stage>` - Revert to specific history entry
@@ -176,24 +176,24 @@ Stages can declare dependencies on other stages:
 ```rust
 #[derive(Debug, Clone)]
 pub enum ProcessingStage {
-    PrepareMedia { 
-        file_path: PathBuf 
+    PrepareMedia {
+        file_path: PathBuf
     },
-    Keyfinder { 
+    Keyfinder {
         file_path: PathBuf,
         notation: KeyNotation,  // Standard, OpenKey, Camelot
     },
-    Beatport { 
+    Beatport {
         file_path: PathBuf,
         credentials: BeatportCredentials,
     },
-    AI { 
+    AI {
         batch: Vec<PathBuf>,
         client: Client,
         batch_size: usize,
     },
-    MetadataCleanup { 
-        file_path: PathBuf 
+    MetadataCleanup {
+        file_path: PathBuf
     },
 }
 
@@ -249,12 +249,12 @@ impl ProcessingStage {
             MetadataCleanup { .. } => vec!["Keyfinder".to_string(), "Beatport".to_string()],
         }
     }
-    
+
     fn stage_name(&self) -> &'static str {
         match self {
             PrepareMedia { .. } => "PrepareMedia",
             Keyfinder { .. } => "Keyfinder",
-            Beatport { .. } => "Beatport", 
+            Beatport { .. } => "Beatport",
             AI { .. } => "AI",
             MetadataCleanup { .. } => "MetadataCleanup",
         }
@@ -267,7 +267,7 @@ The coordinator checks dependencies before scheduling stages, ensuring proper ex
 ### Concurrency & Resource Management
 
 - **Semaphore-based limits** for external programs (convert, keyfinder, etc.)
-- **Tokio streams** for async processing pipeline  
+- **Tokio streams** for async processing pipeline
 - **Per-stage concurrency limits** - configurable via CLI
 - **Batch handling** - AI stage collects files and processes in groups
 - **Global resource coordination** - prevents overwhelming system resources

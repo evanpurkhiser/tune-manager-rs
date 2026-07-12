@@ -1,0 +1,4 @@
+[default.extend-words]
+# ID3 frame identifiers.
+TPE = "TPE"
+TPOS = "TPOS"

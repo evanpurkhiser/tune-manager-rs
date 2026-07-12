@@ -55,11 +55,7 @@ mod tests {
     #[test]
     fn ok_case() {
         let track = make_track();
-        assert!(
-            FileSupportedExtensionRule
-                .check(&track.into())
-                .is_passed()
-        );
+        assert!(FileSupportedExtensionRule.check(&track.into()).is_passed());
     }
 
     #[test]

@@ -49,11 +49,7 @@ mod tests {
 
     #[test]
     fn ok_case() {
-        assert!(
-            TrackCountFormatRule
-                .check(&make_track().into())
-                .is_passed()
-        );
+        assert!(TrackCountFormatRule.check(&make_track().into()).is_passed());
     }
 
     #[test]
@@ -61,10 +57,7 @@ mod tests {
         let mut track = make_track();
         track.fields.track = Some(CountField::Invalid("x".to_string()));
         assert_eq!(
-            TrackCountFormatRule
-                .check(&track.into())
-                .violations()
-                .len(),
+            TrackCountFormatRule.check(&track.into()).violations().len(),
             1
         );
     }

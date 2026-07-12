@@ -1,0 +1,35 @@
+name: lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    name: prek
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            libswresample-dev \
+            libavformat-dev \
+            libavutil-dev \
+            libavcodec-dev \
+            libfftw3-dev \
+            ffmpeg
+
+      - name: Build libkeyfinder
+        run: |
+          git clone --branch 2.2.8 --depth 1 https://github.com/mixxxdj/libkeyfinder keyfinder
+          cmake -S keyfinder -B keyfinder/build
+          cmake --build keyfinder/build
+          sudo cmake --install keyfinder/build
+          sudo ldconfig
+
+      - uses: jdx/mise-action@v4
+      - run: prek run --all-files
