@@ -211,7 +211,7 @@ pub async fn process_tracks(
             format: FORMAT.clone(),
             verbosity: None,
         })
-        .model("o4-mini")
+        .model("gpt-5.6-terra")
         .input(Input::Items(vec![
             InputItem::Message(InputMessage {
                 kind: Default::default(),
