@@ -1,59 +1,75 @@
+# Processing pipeline
+
 let's make a process command.
 
-What i'm thinking is that we can import a whole directory of folders using a
-new "processing" module. Each track goes through multiple processing stages. I
-think we'll want to use tokio with a Unbounded stream for processing each track
-stage, since we'll want everything to happen in parallel. We'll want an enum
-that defines each of the stages, the enum can probably contain all of the data
-we need to execute that stage. so for example the first stage would just be the
-file path, it will ensure it's an AIFF or mp3 file, has id3 tags, and has a
-media hash written to the tags. stages after that would receive the Tags object
-for the already opened file. We'll probably want to use something like foreach
-concurrent.
+What i'm thinking is that we can import a whole directory of folders using a new
+"processing" module.
+Each track goes through multiple processing stages.
+I think we'll want to use tokio with a Unbounded stream
+for processing each track stage,
+since we'll want everything to happen in parallel.
+We'll want an enum that defines each of the stages,
+the enum can probably contain all of the data we need to execute that stage. so
+for example the first stage would just be the file path,
+it will ensure it's an AIFF or mp3 file, has id3 tags,
+and has a media hash written to the tags. stages after
+that would receive the Tags object for the already opened file.
+We'll probably want to use something like foreach concurrent.
 
 Here'swhat im thinking for stages
 
-- PrepareMedia - ensures aiff / mp3, ensure id3 2.4 tags, compute and write
-  media hash. This can happen fully in parallel.
+- PrepareMedia - ensures aiff / mp3, ensure id3 2.4 tags,
+  compute and write media hash.
+  This can happen fully in parallel.
 
-- Keyfinder - determine the key of the track using the keyfinder module. Can be
-  run in parallel.
+- Keyfinder - determine the key of the track using the keyfinder module.
+  Can be run in parallel.
 
-- Beatport - Fetch additional metadata about a track if it's existing ID3 tags
-  include the beatport URL as the WOAF tag. Can be done in parallel. We may
-  need a way to ensure we don't make too many beatport requests all at once
+- Beatport - Fetch additional metadata about a track
+  if it's existing ID3 tags include the beatport URL as the WOAF tag.
+  Can be done in parallel.
+  We may need a way to ensure we don't make too many beatport requests all at
+  once
 
-- AI - Takes a GROUP of tracks and processes them through the OpenAI LLM to
-  have it do the cleanup for us. We won't want to send too many tracks to the
-  LLM at once, so we'll probably need this processing to be smart, where it
-  sneds groups by folder.
+- AI - Takes a GROUP of tracks
+  and processes them through the OpenAI LLM to have it do the cleanup for us.
+  We won't want to send too many tracks to the LLM at once,
+  so we'll probably need this processing to be smart,
+  where it sneds groups by folder.
 
-  This step should first figure out how to batch the files. For example if it's
-  only top-level files and we reach the limit per request (lets say 50) it
-  should chunk into 50. If there are folders however we should count the total
-  files in a tree of folders, if it's less than 50 that folder is a batch. If
-  it's more however, then we would do the same recursive logic of looking for
-  folders in that directory.
+  This step should first figure out how to batch the files.
+  For example if it's only top-level files and we reach the limit per request
+  (lets say 50) it should chunk into 50.
+  If there are folders however we should count the total files in a tree of
+  folders, if it's less than 50 that folder is a batch.
+  If it's more however, then we would do the same recursive logic of looking
+  for folders in that directory.
 
 Any of the steps that are calling external programs, like converting the files,
-getting the media hash, the keyfinder program, will all need to have probably
-some global concurrency limit. So even if we import 1000 files at once, we're
-only running these executables on maybe 10 or 20 at once. We'll 33333333333
+getting the media hash, the keyfinder program,
+will all need to have probably some global concurrency limit.
+So even if we import 1000 files at once,
+we're only running these executables on maybe 10 or 20 at once.
+We'll 33333333333
 
-
-We're also going to want to track the state of all files, probably through
-message passing to some global struct that tracks all the files and what
-they're currently doing, each stage can probably be "not started", "waiting",
-"processing", "complete". Waiting would be if we queued the stage to run, but
-it hasn't been picked up by the executor yet.
+We're also going to want to track the state of all files,
+probably through message passing to some global struct that tracks all the files
+and what they're currently doing, each stage can probably be "not started",
+"waiting", "processing", "complete".
+Waiting would be if we queued the stage to run,
+but it hasn't been picked up by the executor yet.
 
 ## Architecture Details
 
 ### State Management with GEOB Frames
 
-Instead of external state files, we'll use two GEOB (General Encapsulated Object) frames within each file's ID3 tags to store processing state and metadata history:
+Instead of external state files, we'll use two GEOB
+(General Encapsulated Object)
+frames within each file's ID3 tags to store processing state
+and metadata history:
 
 #### Processing State GEOB (`tune-manager-processing-state`)
+
 ```json
 {
   "completed_stages": ["PrepareMedia", "Keyfinder"],
@@ -63,6 +79,7 @@ Instead of external state files, we'll use two GEOB (General Encapsulated Object
 ```
 
 #### Metadata History GEOB (`tune-manager-metadata-history`)
+
 ```json
 {
   "history": [
@@ -81,17 +98,25 @@ Instead of external state files, we'll use two GEOB (General Encapsulated Object
 ```
 
 **Benefits:**
+
 - **Self-contained files** - Each file carries its own processing history
 - **No external state files** to manage or lose
 - **Atomic updates** - State changes with the file itself
 - **Resumable anywhere** - Files can be moved and processing can resume
 - **Easy inspection** - Can check processing state by reading file tags
 
-**Idempotent Stages:** Stages are only added to `completed_stages` once fully finished. No "in_progress" tracking means stages can be interrupted and safely re-run. All stages should be idempotent (safe to run multiple times), though they may not be pure functions (e.g., PrepareMedia modifies file containers and tags).
+**Idempotent Stages:** Stages are only added to `completed_stages`
+once fully finished.
+No "in_progress" tracking means stages can be interrupted and safely re-run.
+All stages should be idempotent
+(safe to run multiple times),
+though they may not be pure functions
+(e.g., PrepareMedia modifies file containers and tags).
 
 ### Coordinator Pattern
 
-The processing coordinator owns all tag writing, eliminating concurrency complexity:
+The processing coordinator owns all tag writing,
+eliminating concurrency complexity:
 
 ```rust
 // Coordinator manages this loop
@@ -114,6 +139,7 @@ for file in files {
 ```
 
 **Stage Function Signature:**
+
 ```rust
 // Stages are idempotent functions - safe to run multiple times
 fn process_stage(
@@ -123,23 +149,28 @@ fn process_stage(
 ```
 
 **Advantages:**
+
 - **No RwLocks needed** - coordinator is the single writer
 - **Stages are idempotent** - safe to interrupt and restart
 - **Atomic updates** - each stage completion is a single tag write
 - **Simpler error handling** - no lock poisoning or deadlock concerns
-- **Crash recovery** - no "in_progress" state means processing can always resume safely
+- **Crash recovery** - no "in_progress" state means processing can always resume
+  safely
 
 ### Safe Metadata Management
 
-All metadata changes are stored in history GEOB - actual ID3 fields are never modified during processing:
+All metadata changes are stored in history GEOB - actual ID3 fields are never
+modified during processing:
 
 **Processing Flow:**
+
 1. Read current metadata from history GEOB (not actual ID3 fields)
 2. Stage processes and returns modified Track object
 3. Append new history entry with stage identifier
 4. Keep original metadata intact until explicit "commit"
 
 **User Commands:**
+
 - `tune-manager process <dir>` - Run processing pipeline, store in GEOB
 - `tune-manager status <files>` - Show processing state and pending changes
 - `tune-manager diff <files>` - Show what each stage changed
@@ -147,6 +178,7 @@ All metadata changes are stored in history GEOB - actual ID3 fields are never mo
 - `tune-manager rollback <files> <stage>` - Revert to specific history entry
 
 **Benefits:**
+
 - **Never lose original metadata** - complete rollback capability
 - **Change tracking** - clear audit trail of what each stage did
 - **Safe experimentation** - test new processing logic without risk
@@ -154,7 +186,7 @@ All metadata changes are stored in history GEOB - actual ID3 fields are never mo
 
 ### Module Structure
 
-```
+```text
 src/processing/
 ├── mod.rs              # Public API and ProcessingStage enum
 ├── coordinator.rs      # Main processing loop and task scheduling
@@ -262,7 +294,8 @@ impl ProcessingStage {
 }
 ```
 
-The coordinator checks dependencies before scheduling stages, ensuring proper execution order while maximizing parallelism.
+The coordinator checks dependencies before scheduling stages,
+ensuring proper execution order while maximizing parallelism.
 
 ### Concurrency & Resource Management
 
@@ -274,9 +307,13 @@ The coordinator checks dependencies before scheduling stages, ensuring proper ex
 
 ### Integration with Existing Code
 
-- **Extend importer.rs** - Move `process_file()` logic into `ProcessingStage::PrepareMedia`
-- **Use existing modules** - `convert`, `media_hash`, `keyfinder`, `beatport`, `ai`
+- **Extend importer.rs** - Move `process_file()` logic into
+  `ProcessingStage::PrepareMedia`
+- **Use existing modules** - `convert`, `media_hash`, `keyfinder`, `beatport`,
+  `ai`
 - **Leverage Track type** - serialize/deserialize for metadata history
 - **Build on error patterns** - compose existing error types
 
-This architecture provides a complete versioned metadata management system with dependency resolution, atomic operations, full audit trails, and safe rollback capabilities.
+This architecture provides a complete versioned metadata management system with
+dependency resolution, atomic operations, full audit trails, and safe rollback
+capabilities.
