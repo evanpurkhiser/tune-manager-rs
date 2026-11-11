@@ -16,8 +16,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Set up tools
+        uses: jdx/mise-action@v4.2.0
 
       - name: Install dependencies
         run: |
